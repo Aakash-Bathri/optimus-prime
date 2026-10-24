@@ -1,0 +1,29 @@
+{
+  "resource_count": 200,
+  "resource_count_by_type": {
+    "vm": 150,
+    "block_volume": 20,
+    "public_ip": 20,
+    "gpu": 10
+  },
+  "vm_metric_rows": 432000,
+  "expected_metric_rows": 432000,
+  "unique_metric_timestamps": 2880,
+  "points_per_vm_min": 2880,
+  "points_per_vm_max": 2880,
+  "pricing_catalog_configurations": 49,
+  "pricing_rows": 200,
+  "block_storage_rate_inr_per_gb_month": 4.0,
+  "unknown_public_ip_prices": 20,
+  "unknown_gpu_prices": 10,
+  "gpu_metric_rows": 28800,
+  "orphan_volume_candidates": 4,
+  "unused_public_ip_candidates": 5,
+  "anomaly_events": 3,
+  "missing_observation_rows": 2880,
+  "test_oracle_rows": 67,
+  "workload_label_rows": 200,
+  "billing_history_rows": 1020,
+  "owner_or_team_missing_vm_count": 0,
+  "validation": "passed"
+}

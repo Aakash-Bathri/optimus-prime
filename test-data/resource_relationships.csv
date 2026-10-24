@@ -1,0 +1,42 @@
+source_resource_id,target_resource_id,relationship_type,evidence
+vm-099,vol-005,attached_volume,synthetic attachment
+vm-063,vol-006,attached_volume,synthetic attachment
+vm-002,vol-007,attached_volume,synthetic attachment
+vm-057,vol-008,attached_volume,synthetic attachment
+vm-133,vol-009,attached_volume,synthetic attachment
+vm-143,vol-010,attached_volume,synthetic attachment
+vm-117,vol-011,attached_volume,synthetic attachment
+vm-136,vol-012,attached_volume,synthetic attachment
+vm-082,vol-013,attached_volume,synthetic attachment
+vm-130,vol-014,attached_volume,synthetic attachment
+vm-115,vol-015,attached_volume,synthetic attachment
+vm-122,vol-016,attached_volume,synthetic attachment
+vm-064,vol-017,attached_volume,synthetic attachment
+vm-134,vol-018,attached_volume,synthetic attachment
+vm-062,vol-019,attached_volume,synthetic attachment
+vm-020,vol-020,attached_volume,synthetic attachment
+vm-040,ip-006,associated_public_ip,synthetic association
+vm-017,ip-007,associated_public_ip,synthetic association
+vm-085,ip-008,associated_public_ip,synthetic association
+vm-107,ip-009,associated_public_ip,synthetic association
+vm-108,ip-010,associated_public_ip,synthetic association
+vm-006,ip-011,associated_public_ip,synthetic association
+vm-123,ip-012,associated_public_ip,synthetic association
+vm-077,ip-013,associated_public_ip,synthetic association
+vm-138,ip-014,associated_public_ip,synthetic association
+vm-140,ip-015,associated_public_ip,synthetic association
+vm-125,ip-016,associated_public_ip,synthetic association
+vm-112,ip-017,associated_public_ip,synthetic association
+vm-100,ip-018,associated_public_ip,synthetic association
+vm-104,ip-019,associated_public_ip,synthetic association
+vm-120,ip-020,associated_public_ip,synthetic association
+vm-001,gpu-001,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-002,gpu-002,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-003,gpu-003,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-004,gpu-004,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-005,gpu-005,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-006,gpu-006,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-007,gpu-007,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-008,gpu-008,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-009,gpu-009,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot
+vm-010,gpu-010,attached_gpu,synthetic GPU attachment; GPU pricing not present in supplied Utho snapshot

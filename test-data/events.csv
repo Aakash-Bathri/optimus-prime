@@ -1,0 +1,78 @@
+event_id,resource_id,event_type,start_time,end_time,severity,description,synthetic
+evt-gpu-gpu-001,gpu-001,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA T4 accelerator (16 GB VRAM) attached to vm-001,True
+evt-gpu-gpu-002,gpu-002,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L4 accelerator (24 GB VRAM) attached to vm-002,True
+evt-gpu-gpu-003,gpu-003,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A10 accelerator (24 GB VRAM) attached to vm-003,True
+evt-gpu-gpu-004,gpu-004,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A100 accelerator (40 GB VRAM) attached to vm-004,True
+evt-gpu-gpu-005,gpu-005,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A100 accelerator (80 GB VRAM) attached to vm-005,True
+evt-gpu-gpu-006,gpu-006,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L40S accelerator (48 GB VRAM) attached to vm-006,True
+evt-gpu-gpu-007,gpu-007,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA H100 accelerator (80 GB VRAM) attached to vm-007,True
+evt-gpu-gpu-008,gpu-008,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA T4 accelerator (16 GB VRAM) attached to vm-008,True
+evt-gpu-gpu-009,gpu-009,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L4 accelerator (24 GB VRAM) attached to vm-009,True
+evt-gpu-gpu-010,gpu-010,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A10 accelerator (24 GB VRAM) attached to vm-010,True
+evt-anomaly-001,vm-001,cpu_network_anomaly,2026-10-03T10:00:00,2026-10-04T10:00:00,critical,Injected 24-hour CPU and network spike for anomaly-detection validation,True
+evt-anomaly-002,vm-002,disk_iops_anomaly,2026-10-12T02:00:00,2026-10-12T08:00:00,high,Injected 6-hour disk IOPS spike for anomaly-detection validation,True
+evt-gpu-anomaly-001,gpu-007,gpu_utilization_anomaly,2026-10-06T14:00:00,2026-10-06T20:00:00,high,Injected six-hour GPU utilization and GPU-memory spike,True
+evt-orphan-vol-001,vol-001,orphan_volume_candidate,2026-09-15T00:00:00,,medium,Block volume of 50 GB has no attached VM relationship,True
+evt-orphan-vol-002,vol-002,orphan_volume_candidate,2026-09-15T00:00:00,,medium,Block volume of 100 GB has no attached VM relationship,True
+evt-orphan-vol-003,vol-003,orphan_volume_candidate,2026-09-15T00:00:00,,medium,Block volume of 100 GB has no attached VM relationship,True
+evt-orphan-vol-004,vol-004,orphan_volume_candidate,2026-09-15T00:00:00,,medium,Block volume of 200 GB has no attached VM relationship,True
+evt-orphan-ip-001,ip-001,unused_public_ip_candidate,2026-09-15T00:00:00,,medium,Reserved public IP has no associated VM relationship,True
+evt-orphan-ip-002,ip-002,unused_public_ip_candidate,2026-09-15T00:00:00,,medium,Reserved public IP has no associated VM relationship,True
+evt-orphan-ip-003,ip-003,unused_public_ip_candidate,2026-09-15T00:00:00,,medium,Reserved public IP has no associated VM relationship,True
+evt-orphan-ip-004,ip-004,unused_public_ip_candidate,2026-09-15T00:00:00,,medium,Reserved public IP has no associated VM relationship,True
+evt-orphan-ip-005,ip-005,unused_public_ip_candidate,2026-09-15T00:00:00,,medium,Reserved public IP has no associated VM relationship,True
+evt-gpu-gpu-001,gpu-001,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA T4 accelerator (16 GB VRAM) attached to vm-001,True
+evt-gpu-gpu-002,gpu-002,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L4 accelerator (24 GB VRAM) attached to vm-002,True
+evt-gpu-gpu-003,gpu-003,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A10 accelerator (24 GB VRAM) attached to vm-003,True
+evt-gpu-gpu-004,gpu-004,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A100 accelerator (40 GB VRAM) attached to vm-004,True
+evt-gpu-gpu-005,gpu-005,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A100 accelerator (80 GB VRAM) attached to vm-005,True
+evt-gpu-gpu-006,gpu-006,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L40S accelerator (48 GB VRAM) attached to vm-006,True
+evt-gpu-gpu-007,gpu-007,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA H100 accelerator (80 GB VRAM) attached to vm-007,True
+evt-gpu-gpu-008,gpu-008,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA T4 accelerator (16 GB VRAM) attached to vm-008,True
+evt-gpu-gpu-009,gpu-009,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA L4 accelerator (24 GB VRAM) attached to vm-009,True
+evt-gpu-gpu-010,gpu-010,gpu_resource_inventory,2026-09-15T00:00:00,,info,Synthetic NVIDIA A10 accelerator (24 GB VRAM) attached to vm-010,True
+evt-weekend-vm-003,vm-003,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-005,vm-005,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-012,vm-012,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-015,vm-015,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-019,vm-019,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-023,vm-023,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-030,vm-030,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-032,vm-032,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-036,vm-036,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-038,vm-038,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-040,vm-040,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-041,vm-041,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-042,vm-042,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-043,vm-043,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-045,vm-045,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-046,vm-046,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-049,vm-049,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-052,vm-052,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-053,vm-053,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-059,vm-059,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-067,vm-067,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-068,vm-068,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-070,vm-070,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-072,vm-072,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-080,vm-080,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-081,vm-081,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-083,vm-083,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-085,vm-085,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-086,vm-086,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-089,vm-089,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-090,vm-090,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-092,vm-092,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-094,vm-094,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-096,vm-096,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-097,vm-097,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-batch-vm-103,vm-103,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-105,vm-105,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-109,vm-109,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-124,vm-124,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-126,vm-126,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-127,vm-127,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-129,vm-129,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
+evt-weekend-vm-132,vm-132,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-weekend-vm-141,vm-141,weekend_development_idle,2026-09-15T00:00:00,2026-10-15T00:00:00,info,Development VM has markedly lower utilization on Saturdays and Sundays,True
+evt-batch-vm-148,vm-148,batch_job_window,2026-09-16T01:00:00,2026-09-16T04:00:00,info,Synthetic batch workload runs daily from 01:00 to 04:00,True
