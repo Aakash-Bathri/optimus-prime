@@ -9,17 +9,20 @@ type Proposal = {
   recommendation: { action: string; target_instance_type?: string; evidence: { source: string; version: string; reason: string; expires_at: string; engine_reference?: { source_resource_id: string; target_plan_id: string; analysis_as_of: string; provider_blockers: string[] } } };
   steps: string[]; agent: { explanation: string; mode: string; tool_calls: { tool: string }[] };
   patch?: { diff: string; validation: Record<string, string> }; rollback: string; error?: string;
+  recovery_snapshot?: { missing?: boolean; provider_id: string };
+  recovery_github?: { branch: string; branch_exists: boolean; matches_preview: boolean; pull_request?: { url: string; state: string } | null };
   result?: { url?: string; after?: Snapshot; verified_at?: string };
 };
 type Audit = { sequence: number; timestamp: string; event: string; proposal_id: string | null; details: unknown };
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 type EngineOptions = { production_ready: boolean; provider_blockers: string[]; candidates: { plan_id: string; vcpu: number; memory_gib: number; lab_instance_type: string | null; lab_eligible: boolean }[] };
 
-export function ExecutionSetup({ token, onToken, onRegistered }: { token: string; onToken: (value: string) => void; onRegistered: (management: 'manual' | 'terraform') => void }) {
+export function ExecutionSetup({ token, onRegistered }: { token: string; onRegistered: (management: 'manual' | 'terraform') => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [registered, setRegistered] = useState('');
   async function register(management: 'manual' | 'terraform') {
-    setBusy(true); setError('');
+    setBusy(true); setError(''); setRegistered('');
     try {
       const response = await fetch(`${baseUrl}/api/execution/demo/setup?management=${management}`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` },
@@ -27,15 +30,17 @@ export function ExecutionSetup({ token, onToken, onRegistered }: { token: string
       const value = await response.json();
       if (!response.ok) throw new Error(value.message ?? 'Registration failed');
       onRegistered(management);
+      setRegistered(management === 'terraform' ? 'Terraform destination registered. Registration does not create a PR. Prepare a change below, approve it, then choose Create approved pull request. Previous attempts remain in Saved proposals; their recorded creation status does not indicate whether a PR is still open.' : 'Manual destination registered. Prepare and approve a change below.');
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Registration failed'); }
     finally { setBusy(false); }
   }
   return <section className="execution panel"><h2>Choose your demo workflow</h2>
     <p>Manual changes run in LocalStack after approval. Terraform changes create a GitHub pull request for review and customer apply.</p>
-    <div className="controls"><label>Local operator token<input type="password" autoComplete="off" value={token} onChange={event => onToken(event.target.value)} placeholder="CLOUDPILOT_EXECUTION_TOKEN from .env" /></label>
+    <div className="controls">
       <button disabled={busy || !token} onClick={() => void register('manual')}>Register manual demo</button>
       <button disabled={busy || !token} onClick={() => void register('terraform')}>Register Terraform demo</button></div>
-    <p className="note">The local demo prefills this credential into page memory. It authorizes preview, approval and execution; GitHub uses its own App credentials.</p>
+    {!token && <p role="status" className="note">Local execution is not configured. Set CLOUDPILOT_EXECUTION_TOKEN and CLOUDPILOT_LOCAL_TOKEN_PREFILL=true in the backend .env, then restart the backend.</p>}
+    {registered && <p role="status">{registered}</p>}
     {busy && <p role="status">Registering demo…</p>}{error && <p role="alert" className="error">{error}</p>}
   </section>;
 }
@@ -46,10 +51,7 @@ export default function Execution({ findings = [], initialRecommendationId = '',
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [audit, setAudit] = useState<Audit[]>([]);
   const [resourceId, setResourceId] = useState('demo-manual-01');
-  const [action, setAction] = useState('resize');
-  const [target, setTarget] = useState('m5.xlarge');
   const [mode, setMode] = useState('scripted');
-  const [source, setSource] = useState('engine');
   const [engineId, setEngineId] = useState(initialRecommendationId);
   const [engineOptions, setEngineOptions] = useState<EngineOptions | null>(null);
   const [planId, setPlanId] = useState('');
@@ -57,8 +59,14 @@ export default function Execution({ findings = [], initialRecommendationId = '',
   const [error, setError] = useState('');
   const selected = resources.find(resource => resource.resource_id === resourceId);
   const queued = findings.filter(item => item.decision === 'accepted' && ['resize', 'capacity_review'].includes(item.action));
+  const targetShape = engineOptions?.candidates.find(item => item.plan_id === planId)?.lab_instance_type;
+  const availableCandidates = engineOptions?.candidates.filter(item => item.lab_eligible && item.lab_instance_type !== selected?.current?.instance_type) ?? [];
+  const hasFinding = queued.some(item => item.id === engineId);
   useEffect(() => {
-    if (initialRecommendationId) { setEngineId(initialRecommendationId); setEngineOptions(null); setPlanId(''); setSource('engine'); }
+    if (!hasFinding) { setEngineOptions(null); setPlanId(''); }
+  }, [engineId, hasFinding]);
+  useEffect(() => {
+    if (initialRecommendationId) { setEngineId(initialRecommendationId); setEngineOptions(null); setPlanId(''); }
   }, [initialRecommendationId]);
 
   async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -78,7 +86,7 @@ export default function Execution({ findings = [], initialRecommendationId = '',
     const destinations = management ? bindings.filter(item => item.management === management) : [];
     setResources(destinations); setHistory(proposals); setAudit(events);
     if (destinations.length && !destinations.some(item => item.resource_id === resourceId)) setResourceId(destinations[0].resource_id);
-    setProposal(current => current ? proposals.find(item => item.id === current.id) ?? current : current);
+    setProposal(current => current ? proposals.find(item => item.id === current.id) ?? current : null);
   }
   async function run(work: () => Promise<void>) {
     setBusy(true); setError('');
@@ -88,60 +96,57 @@ export default function Execution({ findings = [], initialRecommendationId = '',
     } finally { setBusy(false); }
   }
   useEffect(() => { if (token) void run(refresh); }, [token, management, registrationVersion]);
-  useEffect(() => { if (management) setSource('fixture'); }, [management, registrationVersion]);
+  useEffect(() => { setProposal(null); }, [management]);
+
+  useEffect(() => {
+    if (engineOptions) setPlanId(engineOptions.candidates.find(item => item.lab_eligible && item.lab_instance_type !== selected?.current?.instance_type)?.plan_id ?? '');
+  }, [engineOptions, selected?.current?.instance_type, resourceId]);
 
   async function prepare() {
-    const result = source === 'engine' ? await api<Proposal>('/engine/proposals', {
+    const result = await api<Proposal>('/engine/proposals', {
       recommendation_id: engineId, target_plan_id: planId, binding_resource_id: resourceId, mode,
-    }) : await api<Proposal>('/proposals', { recommendation: await api(
-      `/demo/recommendation/${encodeURIComponent(resourceId)}?action=${action}&target=${target}`), mode });
+    });
     setProposal(result); await refresh();
   }
 
   return <section className="execution panel" aria-labelledby="execution-title">
     <div className="section-heading"><div><p className="eyebrow">ENGINE → REVIEW → LOCALSTACK / GITHUB</p>
       <h2 id="execution-title">Review and execute a change</h2></div><span>Preview → approve → execute → verify</span></div>
-    <ol aria-label="Execution journey"><li>Queue a capacity finding in Recommendations.</li><li>Choose and register a workflow on Home.</li><li>Load candidate evidence, select a destination, and prepare a preview.</li><li>Approve the preview, apply the change, and inspect the verified result.</li></ol>
+    <ol aria-label="Execution journey"><li>Queue a capacity finding in Recommendations.</li><li>Register a demo destination above.</li><li>Load candidate evidence, select a destination, and prepare a preview.</li><li>Approve the preview, apply the change, and inspect the verified result.</li></ol>
     <p>Terraform resources receive a GitHub pull request for customer review and apply. Manual resources change directly in LocalStack after your approval.</p>
     <div className="controls">
       <button disabled={busy || !token} onClick={() => void run(refresh)}>Refresh destinations</button>
     </div>
-    {!resources.length && <p>Register a manual or Terraform demo on Home to begin.</p>}
+    {!resources.length && <p>Register a manual or Terraform demo above to begin.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     {busy && <p role="status">Working… Live integrations and Terraform validation may take a minute.</p>}
-    {resources.length > 0 && <>
-      <label>Recommendation source<select value={source} onChange={event => setSource(event.target.value)}><option value="engine">Queued engine finding</option><option value="fixture">Demo recommendation</option></select></label>
-      {source === 'engine' && <div className="engine-handoff">
+    {resources.length > 0 && <fieldset disabled={busy} className="execution-inputs">
+      <div className="engine-handoff">
         <p>Queue a resize finding from Recommendations, then test its exact candidate CPU/RAM shape on a LocalStack fixture. Historical evidence and unresolved production checks stay visible.</p>
         <div className="controls"><label>Queued finding<select aria-label="Queued finding" value={engineId} onChange={event => { setEngineId(event.target.value); setEngineOptions(null); setPlanId(''); }}>
           <option value="">Select a queued finding</option>{queued.map(item => <option key={item.id} value={item.id}>{item.resource_name} · {item.target_plan_id ?? item.action}</option>)}
-        </select></label><button disabled={busy || !engineId} onClick={() => void run(async () => {
+        </select></label><button disabled={busy || !hasFinding} onClick={() => void run(async () => {
           const result = await api<EngineOptions>(`/engine/candidates/${encodeURIComponent(engineId)}`);
           setEngineOptions(result); setPlanId(result.candidates.find(item => item.lab_eligible && item.lab_instance_type !== selected?.current?.instance_type)?.plan_id ?? '');
         })}>Load candidate evidence</button></div>
         {!queued.length && <p>No queued resize findings yet. Open Recommendations, inspect a finding and choose Queue for review.</p>}
         {engineOptions && <><label>Capacity candidate<select aria-label="Capacity candidate" value={planId} onChange={event => setPlanId(event.target.value)}>
-          <option value="">Select a supported candidate</option>{engineOptions.candidates.filter(item => item.lab_eligible).map(item => <option key={item.plan_id} value={item.plan_id}>{item.plan_id} · {item.vcpu} vCPU / {item.memory_gib} GiB → {item.lab_instance_type}</option>)}
+          <option value="">Select a supported candidate</option>{engineOptions.candidates.filter(item => item.lab_eligible).map(item => <option key={item.plan_id} value={item.plan_id} disabled={item.lab_instance_type === selected?.current?.instance_type}>{item.plan_id} · {item.vcpu} vCPU / {item.memory_gib} GiB → {item.lab_instance_type}{item.lab_instance_type === selected?.current?.instance_type ? ' (current)' : ''}</option>)}
         </select></label><p className="note">Production ready: {engineOptions.production_ready ? 'yes' : 'no'}. This test changes only the selected LocalStack fixture or its demo Terraform code.</p>
           <details><summary>Unresolved provider checks</summary><ul>{engineOptions.provider_blockers.map(item => <li key={item}>{item}</li>)}</ul></details>
-          {!engineOptions.candidates.some(item => item.lab_eligible) && <p>No candidate matches a supported lab shape and passes capacity checks.</p>}</>}
-      </div>}
+          {!engineOptions.candidates.some(item => item.lab_eligible) && <p role="status">This finding has no supported LocalStack shape. Choose another queued finding.</p>}
+          {engineOptions.candidates.some(item => item.lab_eligible) && !availableCandidates.length && <p role="status">This destination already has the candidate size. There is no resize to apply. Choose another queued finding or a destination with a different current size.</p>}</>}
+      </div>
       <div className="controls">
-        <label>LocalStack destination<select value={resourceId} onChange={event => { setResourceId(event.target.value); setAction('resize'); }}>
+        <label>LocalStack destination<select value={resourceId} onChange={event => { setResourceId(event.target.value); setPlanId(''); }}>
           {resources.map(resource => <option key={resource.resource_id} value={resource.resource_id}>{resource.resource_id} · {resource.management}</option>)}
         </select></label>
-        <label>Agent<select value={mode} onChange={event => setMode(event.target.value)}><option value="llm">Bedrock Mantle + LangChain</option><option value="scripted">Scripted tools (no LLM)</option></select></label>
-        {source === 'fixture' && <label>Action<select value={action} onChange={event => setAction(event.target.value)}><option value="resize">Resize</option>
-          {selected?.management === 'manual' && <><option value="stop">Stop</option><option value="start">Start</option></>}
-        </select></label>}
-        {source === 'fixture' && action === 'resize' && <label>Target type<select value={target} onChange={event => setTarget(event.target.value)}>
-          {['m5.large', 'm5.xlarge', 'm5.2xlarge'].map(type => <option key={type}>{type}</option>)}
-        </select></label>}
+        <label>Preview explanation<select value={mode} onChange={event => setMode(event.target.value)}><option value="llm">LLM explanation</option><option value="scripted">Evidence summary (no LLM)</option></select></label>
       </div>
       <p>Current: <strong>{selected?.current?.instance_type ?? 'Unavailable'}</strong> · {selected?.current?.state} · {selected?.provider_id}</p>
       <p className="note">The live dataset is historical. Lab tests establish control-plane behavior, not production safety or realized savings.</p>
-      <button disabled={busy || (source === 'engine' && (!engineId || !planId))} onClick={() => void run(prepare)}>Prepare change preview</button>
-    </>}
+      <button disabled={busy || !selected?.current || !hasFinding || !planId || targetShape === selected?.current?.instance_type} onClick={() => void run(prepare)}>Prepare change preview</button>
+    </fieldset>}
     {proposal && <article className="proposal" aria-labelledby="proposal-title">
       <div className="section-heading"><h3 id="proposal-title">{proposal.binding.resource_id} · {proposal.recommendation.action}</h3><strong>{proposal.status}</strong></div>
       <p>{proposal.before.instance_type} / {proposal.before.state} → {proposal.recommendation.target_instance_type ?? proposal.recommendation.action}</p>
@@ -151,12 +156,12 @@ export default function Execution({ findings = [], initialRecommendationId = '',
         <p>Source: {proposal.recommendation.evidence.engine_reference.source_resource_id} · Candidate: {proposal.recommendation.evidence.engine_reference.target_plan_id} · Historical cutoff: {proposal.recommendation.evidence.engine_reference.analysis_as_of}</p>
         <ul>{proposal.recommendation.evidence.engine_reference.provider_blockers.map(item => <li key={item}>{item}</li>)}</ul>
       </details>}
-      <p className="note">Agent mode: {proposal.agent.mode}. Tools: {proposal.agent.tool_calls.map(item => item.tool).join(' → ')}</p>
+      <p className="note">Explanation: {proposal.agent.mode === 'llm' ? 'LLM' : 'Evidence summary'}</p>
       <ol>{proposal.steps.map(step => <li key={step}>{step}</li>)}</ol>
       {proposal.binding.management === 'manual' && proposal.recommendation.action === 'resize' && proposal.before.state === 'running' && <p><strong>This resize stops and restarts the demo VM.</strong></p>}
       {proposal.patch && <><pre aria-label="Terraform diff">{proposal.patch.diff}</pre><p>Validation: fmt passed · validate passed · candidate plan not run</p></>}
       <details><summary>Exact approval identity</summary><p className="mono">Proposal: {proposal.id}<br />Digest: {proposal.digest}</p></details>
-      <div className="controls">
+      {['AWAITING_APPROVAL', 'APPROVED'].includes(proposal.status) && <div className="controls">
         <button disabled={busy || proposal.status !== 'AWAITING_APPROVAL'} onClick={() => void run(async () => {
           setProposal(await api(`/proposals/${proposal.id}/decision`, { digest: proposal.digest, decision: 'approve' })); await refresh();
         })}>Approve this exact change</button>
@@ -166,9 +171,11 @@ export default function Execution({ findings = [], initialRecommendationId = '',
         <button disabled={busy || proposal.status !== 'APPROVED'} onClick={() => void run(async () => {
           setProposal(await api(`/proposals/${proposal.id}/execute`, { digest: proposal.digest })); await refresh();
         })}>{proposal.binding.management === 'terraform' ? 'Create approved pull request' : 'Apply approved LocalStack change'}</button>
-      </div>
+      </div>}
       {proposal.error && <p role="alert" className="error">{proposal.error}</p>}
-      {proposal.result?.url && <p><a href={proposal.result.url} target="_blank" rel="noreferrer">Review GitHub pull request</a> · Infrastructure changes after customer merge and apply.</p>}
+      {proposal.recovery_snapshot?.missing && <p className="note">The original LocalStack instance is absent from live inventory. Its absence was recorded before releasing the failed execution.</p>}
+      {proposal.recovery_github && <p className="note">Inspected GitHub branch: {proposal.recovery_github.branch_exists ? 'exists' : 'not found'}. Variable file {proposal.recovery_github.matches_preview ? 'matches' : 'does not match'} the preview. {proposal.recovery_github.pull_request && <a href={proposal.recovery_github.pull_request.url} target="_blank" rel="noreferrer">Review existing {proposal.recovery_github.pull_request.state} pull request before preparing another change.</a>}</p>}
+      {proposal.result?.url && <p><a href={proposal.result.url} target="_blank" rel="noreferrer">View pull request on GitHub (check current status)</a> · Infrastructure changes after customer merge and apply.</p>}
       {proposal.result?.after && <p><strong>LocalStack verified:</strong> {proposal.result.after.instance_type} · {proposal.result.after.state}<br />{proposal.result.verified_at}</p>}
       <p className="note">Rollback: {proposal.rollback}</p>
       {proposal.status === 'APPLIED' && <button disabled={busy} onClick={() => void run(async () => {
@@ -176,7 +183,7 @@ export default function Execution({ findings = [], initialRecommendationId = '',
       })}>Prepare inverse change for review</button>}
       {proposal.status === 'RECOVERY_REQUIRED' && <button disabled={busy} onClick={() => void run(async () => {
         setProposal(await api(`/proposals/${proposal.id}/acknowledge-recovery`, { digest: proposal.digest })); await refresh();
-      })}>Read live state and acknowledge failure</button>}
+      })}>Inspect integration state and acknowledge failure</button>}
     </article>}
     {history.length > 0 && <details><summary>Saved proposals ({history.length})</summary><ul>{history.map(item => <li key={item.id}>
       <button disabled={busy} onClick={() => setProposal(item)}>{item.binding.resource_id} · {item.status} · {item.id.slice(0, 8)}</button>

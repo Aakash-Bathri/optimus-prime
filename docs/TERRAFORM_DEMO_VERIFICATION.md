@@ -2,7 +2,7 @@
 
 Verified against the local Compose dashboard at http://127.0.0.1:5175.
 
-- Home prefills the operator token in a password field through the opt-in, uncached local session endpoint.
+- The local operator token loads silently through the opt-in, uncached local session endpoint; Home has no token field.
 - Manual and Terraform registration choices appear only on Home. Selecting Terraform opens Execution lab with the Terraform destination and demo recommendation selected.
 - Terraform registration succeeded for `demo-api-01`.
 - Preview changed only `api_instance_type` from `m5.2xlarge` to `m5.xlarge`.

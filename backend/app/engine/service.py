@@ -1,4 +1,5 @@
 import json
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
@@ -33,7 +34,7 @@ class Filters:
             (self.data_source is None or self.data_source == SOURCE_ID)
             and (self.environment is None or resource.environment == self.environment)
             and (self.region is None or resource.region == self.region)
-            and (self.team is None or resource.team == self.team)
+            and (self.team is None or (resource.team or "Unassigned") == self.team)
             and (self.resource_type is None or resource.type == self.resource_type)
             and (not self.search or self.search.casefold() in f"{resource.id} {resource.name}".casefold())
         )
@@ -168,14 +169,18 @@ class CloudPilot:
         alerts = [alert for alert in alerts if alert.resource_id in resource_ids]
         history = self.billing_history(resource_ids)
         if len(history) >= 2:
-            previous, latest = Decimal(history[-2]["amount"]), Decimal(history[-1]["amount"])
-            increase = (latest / previous - 1) * 100 if previous else Decimal(0)
-            if increase >= 5:
+            def daily_rate(item):
+                year, month = map(int, item["month"].split("-"))
+                return Decimal(item["amount"]) / monthrange(year, month)[1]
+            previous, latest = daily_rate(history[-2]), daily_rate(history[-1])
+            increase = (latest / previous - 1) * 100 if previous else None
+            if (increase is not None and increase >= 5) or (previous == 0 and latest > 0):
+                growth = f"Daily cost rose {increase:.1f}%" if increase is not None else "Billed cost appeared from a zero baseline"
                 alerts.append(Alert(
                     id="cost-increase", category="cost_increase", severity="warning", title="Synthetic billing is rising",
-                    explanation=f"The filtered estate rose {increase:.1f}% from {history[-2]['month']} to {history[-1]['month']}. This is a generated billing scenario, not an invoice or verified forecast.",
+                    explanation=f"{growth} from {history[-2]['month']} to {history[-1]['month']}. This is a generated billing scenario, not an invoice or verified forecast.",
                     timestamp=history[-1]["month"] + "-01T00:00:00+00:00", observed=float(latest), baseline=float(previous), threshold=5,
-                    unit="INR; alert threshold 5% growth", source="synthetic_billing",
+                    unit="INR/day; alert threshold 5% growth", source="synthetic_billing",
                 ))
         severity = {"critical": 0, "warning": 1, "info": 2}
         return sorted(alerts, key=lambda alert: (severity[alert.severity], alert.id))

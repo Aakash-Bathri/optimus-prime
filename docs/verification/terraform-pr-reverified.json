@@ -1,0 +1,13 @@
+{
+  "url": "https://github.com/Harshavardhan2903/cloudpilot-terraform-demo/pull/3",
+  "state": "open",
+  "merged": false,
+  "proposal_status": "PR_CREATED",
+  "head_matches_approved_preview": true,
+  "files": [
+    "terraform.tfvars.json"
+  ],
+  "patches": [
+    "@@ -1,3 +1,3 @@\n {\n-  \"api_instance_type\": \"m5.2xlarge\"\n+  \"api_instance_type\": \"m5.xlarge\"\n }"
+  ]
+}

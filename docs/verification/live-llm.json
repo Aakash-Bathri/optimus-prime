@@ -1,0 +1,32 @@
+{
+  "question": "What if staging VMs shut down from 8 PM to 8 AM on weekdays for 60 days?",
+  "scenario": {
+    "billing_mode": "commitment",
+    "days": 60,
+    "shutdown": true,
+    "shutdown_environment": "staging",
+    "stop_hour": 20,
+    "start_hour": 8,
+    "weekdays": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "timezone": "Asia/Kolkata",
+    "demand_growth_pct": 0.0,
+    "budget": null,
+    "cost_increase_pct": 5.0,
+    "capacity_pct": 80.0,
+    "watts_per_vcpu": 12.0,
+    "pue": 1.4,
+    "carbon_kg_per_kwh": 0.7
+  },
+  "model": "qwen.qwen3-coder-480b-a35b-instruct",
+  "explanation": {
+    "explanation": "CloudPilot analyzed a commitment billing scenario with shutdowns in staging environments. No invoice savings were found because commitment billing does not reduce fixed costs.\n\nEstimated impact shows zero rupee savings from shutdowns under commitment billing. However, 118,872 vCPU hours were avoided, leading to potential energy savings of 1,997 kWh and 1,398 kg CO2e reduction if hourly billing applied.\n\nPrerequisites include reviewing storage charges, dependencies, and restart procedures. Savings assume 80% capacity utilization and 5% cost growth. Results use synthetic historical data and timezone-based scheduling. Carbon estimates rely on assumed grid intensity and hardware efficiency. Actual savings depend on specific resource configurations and usage patterns. No real-time data or authentication features are included.",
+    "source": "qwen",
+    "model": "qwen.qwen3-coder-480b-a35b-instruct"
+  }
+}

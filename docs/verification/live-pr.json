@@ -1,0 +1,15 @@
+{
+  "status": "PR_CREATED",
+  "proposal_id": "7fc5d4f7-6ed6-4782-8583-963b1339feed",
+  "result": {
+    "url": "https://github.com/Harshavardhan2903/cloudpilot-terraform-demo/pull/3",
+    "number": 3,
+    "branch": "codex/cloudpilot-7fc5d4f7-6ed6-4782-8583-963b1339feed"
+  },
+  "validation": {
+    "fmt": "passed",
+    "validate": "passed",
+    "plan": "not_run"
+  },
+  "repeat_execute_same_pr": true
+}

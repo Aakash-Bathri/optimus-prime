@@ -22,7 +22,12 @@ class Terraform:
             raise WorkflowError("Terraform module differs from the supported demo template; review its integration first")
         path = binding["variables_file"]
         before = files[path]
-        variables = json.loads(before)
+        try:
+            variables = json.loads(before)
+            if not isinstance(variables, dict):
+                raise ValueError("Expected object")
+        except ValueError:
+            raise WorkflowError("Mapped Terraform variables must be a JSON object", 422) from None
         if variables.get(binding["variable"]) != current:
             raise WorkflowError("Terraform variable and current instance type differ; reconcile drift first")
         allowed = snapshot["mapping"].get("candidate_instance_types", [])
@@ -59,8 +64,13 @@ class Terraform:
                 ["fmt", "-check", "-no-color"],
                 ["validate", "-json"],
             ):
-                result = subprocess.run([executable, *arguments], cwd=work, env=env,
-                                        capture_output=True, timeout=120, text=True)
+                try:
+                    result = subprocess.run([executable, *arguments], cwd=work, env=env,
+                                            capture_output=True, timeout=120, text=True)
+                except subprocess.TimeoutExpired:
+                    raise WorkflowError(f"Terraform {arguments[0]} timed out; no preview was prepared", 504) from None
+                except OSError:
+                    raise WorkflowError("Terraform could not start; check the local installation", 503) from None
                 if result.returncode != 0:
                     raise WorkflowError(f"Terraform {arguments[0]} failed; candidate cannot be approved", 422)
         return {"file": path, "before": before, "after": after,

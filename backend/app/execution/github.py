@@ -1,6 +1,7 @@
 """GitHub App installation auth and an idempotent, customer-applied PR path."""
 
 import base64
+import binascii
 import json
 import time
 from urllib.parse import quote
@@ -24,7 +25,7 @@ class GitHub:
             now = int(time.time())
             signed = jwt.encode({"iat": now - 60, "exp": now + 540, "iss": self.config["GITHUB_APP_ID"]},
                 (ROOT / self.config["GITHUB_APP_PRIVATE_KEY_PATH"]).read_bytes(), algorithm="RS256")
-        except (KeyError, OSError):
+        except (KeyError, OSError, ValueError, jwt.PyJWTError):
             raise WorkflowError("GitHub App ID/private key is not configured", 503) from None
         with httpx.Client(base_url="https://api.github.com", timeout=30,
                           headers={"Authorization": "Bearer " + signed,
@@ -39,21 +40,33 @@ class GitHub:
         })
 
     @staticmethod
-    def request(client, method, path, **kwargs):
+    def request(client, method, path, missing_ok=False, **kwargs):
         try:
             response = client.request(method, path, **kwargs)
         except httpx.RequestError:
             raise WorkflowError("Cannot reach GitHub; check connectivity before retrying", 502) from None
+        if missing_ok and response.status_code == 404:
+            return None
         if not response.is_success:
             raise WorkflowError(f"GitHub request failed (HTTP {response.status_code}); check App access", 502)
-        return response.json()
+        try:
+            result = response.json()
+            if not isinstance(result, (dict, list)):
+                raise ValueError("Unexpected response shape")
+            return result
+        except ValueError:
+            raise WorkflowError("GitHub returned an invalid response; retry after checking connectivity", 502) from None
 
     def file(self, client, repository, path, ref):
         result = self.request(client, "GET", f"/repos/{repository}/contents/{quote(path, safe='/')}",
                               params={"ref": ref})
         if not isinstance(result, dict) or result.get("encoding") != "base64":
             raise WorkflowError("Mapped Terraform source is not a regular supported-size file")
-        return base64.b64decode(result["content"]).decode("utf-8"), result["sha"]
+        try:
+            content = "".join(result["content"].split())
+            return base64.b64decode(content, validate=True).decode("utf-8"), result["sha"]
+        except (KeyError, TypeError, AttributeError, ValueError, binascii.Error):
+            raise WorkflowError("Mapped Terraform source is not valid base64 UTF-8 content", 502) from None
 
     def snapshot(self, binding):
         repository = binding["repository"]
@@ -62,13 +75,19 @@ class GitHub:
             branch = repo["default_branch"]
             commit = self.request(client, "GET", f"/repos/{repository}/commits/{quote(branch, safe='')}")["sha"]
             mapping, _ = self.file(client, repository, "cloudpilot.json", commit)
-            matches = [item for item in json.loads(mapping)["resources"]
-                       if item["resource_id"] == binding["resource_id"]]
+            try:
+                manifest = json.loads(mapping)
+                resources = manifest["resources"]
+                if not isinstance(resources, list) or any(not isinstance(item, dict) for item in resources):
+                    raise ValueError("Invalid mapping resources")
+                matches = [item for item in resources if item.get("resource_id") == binding["resource_id"]]
+            except (KeyError, TypeError, ValueError):
+                raise WorkflowError("cloudpilot.json must contain a resources array of mapping objects", 422) from None
             if len(matches) != 1 or any(matches[0].get(key) != binding[key] for key in (
                 "terraform_address", "variables_file", "variable",
             )):
                 raise WorkflowError("Repository mapping differs from the registered resource")
-            main_path = matches[0]["terraform_file"]
+            main_path = matches[0].get("terraform_file")
             if main_path != "main.tf":
                 raise WorkflowError("This integration currently validates a root main.tf module")
             files = {}
@@ -88,6 +107,25 @@ class GitHub:
             branch = self.request(client, "GET", f"/repos/{repository}")["default_branch"]
             return self.request(client, "GET", f"/repos/{repository}/commits/{quote(branch, safe='')}")["sha"]
 
+    def recovery(self, proposal):
+        """Read remote effects of an interrupted PR attempt; never write or retry it."""
+        binding = proposal["binding"]
+        repository = binding["repository"]
+        branch = "codex/cloudpilot-" + proposal["id"]
+        with self.client(repository) as client:
+            pulls = self.request(client, "GET", f"/repos/{repository}/pulls", params={
+                "state": "all", "head": repository.split("/")[0] + ":" + branch})
+            ref = self.request(client, "GET", f"/repos/{repository}/git/ref/heads/{quote(branch, safe='')}", missing_ok=True)
+            current = None
+            if ref is not None:
+                content, _ = self.file(client, repository, binding["variables_file"], ref["object"]["sha"])
+                current = content
+            pull = pulls[0] if pulls else None
+            return {"branch": branch, "branch_exists": ref is not None,
+                    "matches_preview": current == proposal["patch"]["after"],
+                    "pull_request": {"url": pull["html_url"], "number": pull["number"],
+                                     "state": pull["state"]} if pull else None}
+
     def create_pr(self, proposal, checkpoint):
         binding = proposal["binding"]
         repository = binding["repository"]
@@ -98,7 +136,10 @@ class GitHub:
                 "state": "all", "head": repository.split("/")[0] + ":" + branch,
             })
             if existing:
+                if existing[0].get("state") != "open":
+                    raise WorkflowError("This proposal already has a closed or merged PR. Prepare a fresh preview and approval for a new change.", 409)
                 return {"url": existing[0]["html_url"], "number": existing[0]["number"], "branch": branch}
+            checkpoint("branch_create_requested", {"branch": branch})
             self.request(client, "POST", f"/repos/{repository}/git/refs", json={
                 "ref": "refs/heads/" + branch, "sha": snapshot["base_sha"],
             })

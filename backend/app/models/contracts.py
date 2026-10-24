@@ -43,7 +43,7 @@ class Resource(Contract):
     attached_to: str | None = None
     lifecycle_state: str
     gpu_model: str | None = None
-    gpu_vram_gib: float | None = None
+    gpu_vram_gib: float | None = Field(default=None, gt=0)
     gpu_workload: str | None = None
     monthly_cost: Decimal | None = Field(default=None, ge=0)
     cost_basis: str | None = None

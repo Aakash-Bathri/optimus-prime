@@ -198,7 +198,7 @@ class ExecutionService:
 
         def checkpoint(event, details):
             nonlocal mutated
-            if event in ("stop_requested", "start_requested", "resize_requested", "branch_created"):
+            if event in ("stop_requested", "start_requested", "resize_requested", "branch_create_requested", "branch_created"):
                 mutated = True
             self.store.audit(identifier, event, details)
 
@@ -264,9 +264,14 @@ class ExecutionService:
         if proposal["status"] != "RECOVERY_REQUIRED" or proposal["digest"] != approved_digest:
             raise WorkflowError("Only an interrupted execution can be acknowledged")
         async with self.cloud_factory() as cloud:
-            current = await cloud.inspect(proposal["binding"]["provider_id"])
-        self.store.audit(identifier, "recovery_inspected", {"current": current, "actor": "local_operator"})
-        result = self.store.transition(identifier, ("RECOVERY_REQUIRED",), "FAILED", recovery_snapshot=current)
+            provider_id = proposal["binding"]["provider_id"]
+            current = next((item for item in await cloud.inventory() if item["provider_id"] == provider_id),
+                           {"provider_id": provider_id, "missing": True})
+        remote = None
+        if proposal["binding"]["management"] == "terraform":
+            remote = await asyncio.to_thread(self.github.recovery, proposal)
+        self.store.audit(identifier, "recovery_inspected", {"current": current, "github": remote, "actor": "local_operator"})
+        result = self.store.transition(identifier, ("RECOVERY_REQUIRED",), "FAILED", recovery_snapshot=current, recovery_github=remote)
         self.store.release(identifier)
         return result
 

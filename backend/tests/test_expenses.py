@@ -77,3 +77,20 @@ def test_expense_range_validation_and_empty_scope(client):
     assert body['total'] == '0.00'
     assert body['resource_count'] == 0
     assert body['groups'] == []
+
+
+def test_unassigned_team_bucket_can_be_drilled(client, settings):
+    import json
+    from app.database import connect
+    with connect(settings.resolved_database_path) as db:
+        row = db.execute('SELECT id, payload FROM resources LIMIT 1').fetchone()
+        resource = json.loads(row['payload'])
+        resource['team'] = None
+        db.execute('UPDATE resources SET payload=? WHERE id=?', (json.dumps(resource), row['id']))
+    grouped = client.get('/api/expenses?breakdown=team').json()
+    bucket = next(g for g in grouped['groups'] if g['id'] == 'Unassigned')
+    drill = client.get('/api/expenses?breakdown=team&team=Unassigned').json()
+    assert drill['total'] == bucket['amount']
+    assert drill['resource_count'] == bucket['resource_count']
+    inventory = client.get('/api/resources?team=Unassigned').json()
+    assert {r['resource_id'] for r in drill['resources']} == {r['id'] for r in inventory['items']}

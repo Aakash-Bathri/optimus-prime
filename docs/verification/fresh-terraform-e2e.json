@@ -1,0 +1,11 @@
+{
+  "proposal_id": "009200c7-234c-4c68-944e-14f2ee6108b8",
+  "url": "https://github.com/Harshavardhan2903/cloudpilot-terraform-demo/pull/4",
+  "number": 4,
+  "state": "open",
+  "fresh_approved_preview": true,
+  "unapproved_execution_blocked": true,
+  "remote_contents_match": true,
+  "repeat_execute_same_pr": true,
+  "infrastructure_unchanged": true
+}

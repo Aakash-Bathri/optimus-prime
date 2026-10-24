@@ -127,6 +127,12 @@ def optimization_plan(app: Service, scope: Scope) -> dict:
     return app.plan(scope)
 
 
+def csv_text(value):
+    if isinstance(value, str) and value.lstrip(" \t\r\n").startswith(("=", "+", "-", "@")):
+        return "'" + value
+    return value
+
+
 @router.get("/optimization-plan/export", tags=["planning"])
 def export(app: Service, scope: Scope, format: Literal["json", "csv"] = "json"):
     payload = app.export(scope)
@@ -143,10 +149,9 @@ def export(app: Service, scope: Scope, format: Literal["json", "csv"] = "json"):
             value = item[column]
             if isinstance(value, list):
                 value = " | ".join(value)
-            if isinstance(value, str) and column in {"resource_id", "resource_name"} and value.startswith(("=", "+", "-", "@")):
-                value = "'" + value
-            values.append(value)
-        writer.writerow([*values, "INR", payload["dataset"]["cost_basis"], payload["dataset"]["version"], payload["dataset"]["policy"]["version"], " | ".join(payload["dataset"]["assumptions"]), payload["generated_at"]])
+            monetary = column in {"current_monthly_cost", "target_monthly_cost", "modeled_monthly_savings", "conditional_monthly_savings"}
+            values.append(value if monetary else csv_text(value))
+        writer.writerow([*values, *map(csv_text, ["INR", payload["dataset"]["cost_basis"], payload["dataset"]["version"], payload["dataset"]["policy"]["version"], " | ".join(payload["dataset"]["assumptions"]), payload["generated_at"]])])
     return Response(stream.getvalue(), media_type="text/csv", headers=headers)
 
 

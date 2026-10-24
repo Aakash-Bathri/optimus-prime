@@ -141,3 +141,25 @@ def test_errors_pagination_and_cache_reuse(client, settings):
         assert body['request_id'] == response.headers['X-Request-ID']
     with TestClient(create_app(settings)) as restarted:
         assert restarted.get('/api/dataset').json()['imported_at'] == imported_at
+
+
+def test_csv_export_escapes_all_text_fields_but_keeps_negative_costs(client, settings):
+    import json
+    from app.database import connect
+    finding = next(f for f in client.get('/api/recommendations?limit=200').json()['items'] if f['action'] == 'capacity_review' and f['conditional_monthly_savings'] is not None and Decimal(f['conditional_monthly_savings']) < 0)
+    with connect(settings.resolved_database_path) as db:
+        row = db.execute('SELECT summary, payload FROM recommendations WHERE id=?', (finding['id'],)).fetchone()
+        summary, payload = json.loads(row['summary']), json.loads(row['payload'])
+        for record in [summary, payload]:
+            record['resource_name'] = ' \t=HYPERLINK("https://example.test")'
+            record['current_plan_id'] = '+untrusted-plan'
+            record['blockers'] = ['@untrusted']
+        db.execute('UPDATE recommendations SET summary=?,payload=? WHERE id=?', (json.dumps(summary), json.dumps(payload), finding['id']))
+    response = client.patch('/api/recommendations/' + finding['id'], json={'decision': 'accepted', 'version': finding['version'], 'expected_revision': finding['decision_revision']})
+    assert response.status_code == 200
+    rows = list(csv.DictReader(io.StringIO(client.get('/api/optimization-plan/export?format=csv').text)))
+    row = next(r for r in rows if r['resource_id'] == finding['resource_id'])
+    assert row['resource_name'].startswith("' \t=")
+    assert row['current_plan_id'] == "'+untrusted-plan"
+    assert row['blockers'] == "'@untrusted"
+    assert Decimal(row['conditional_monthly_savings']) < 0

@@ -4,8 +4,8 @@ import { post } from './lib/api';
 import type { Recommendation } from './lib/api';
 import './Monitoring.css';
 
-type Role = 'engineer' | 'finance' | 'leadership';
 interface Scenario {
+  billing_mode: string;
   days: number; shutdown: boolean; shutdown_environment: string; stop_hour: number; start_hour: number;
   weekdays: number[]; timezone: string; demand_growth_pct: number; budget: number | null;
   cost_increase_pct: number; capacity_pct: number; watts_per_vcpu: number; pue: number; carbon_kg_per_kwh: number;
@@ -16,35 +16,39 @@ interface Projection {
   points: { date: string; baseline: number; scenario: number; lower: number; upper: number }[];
   usage: { allocated_vcpu_hours: number; avoided_vcpu_hours: number; estimated_busy_vcpu_hours: number };
   sustainability: { baseline_kwh: number; avoided_kwh: number; avoided_kg_co2e: number };
-  alerts: { id: string; category: string; title: string; severity: string; explanation: string; timestamp: string }[];
+  alerts: { id: string; category: string; title: string; severity: string; explanation: string; timestamp: string; resource_name?: string }[];
   assumptions: string[];
 }
-const defaults: Scenario = { days: 30, shutdown: true, shutdown_environment: 'development', stop_hour: 20, start_hour: 8, weekdays: [0, 1, 2, 3, 4, 5, 6], timezone: 'Asia/Kolkata', demand_growth_pct: 0, budget: null, cost_increase_pct: 5, capacity_pct: 80, watts_per_vcpu: 12, pue: 1.4, carbon_kg_per_kwh: 0.7 };
+const defaults: Scenario = { billing_mode: 'commitment', days: 30, shutdown: true, shutdown_environment: 'development', stop_hour: 20, start_hour: 8, weekdays: [0, 1, 2, 3, 4, 5, 6], timezone: 'Asia/Kolkata', demand_growth_pct: 0, budget: null, cost_increase_pct: 5, capacity_pct: 80, watts_per_vcpu: 12, pue: 1.4, carbon_kg_per_kwh: 0.7 };
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 
 export default function Monitoring({ query, findings }: { query: string; findings: Recommendation[] }) {
   const [draft, setDraft] = useState<Scenario>(defaults);
   const [applied, setApplied] = useState<Scenario>(defaults);
-  const [role, setRole] = useState<Role>(() => { const saved = localStorage.getItem('cloudpilot-monitoring-role'); return saved === 'finance' || saved === 'leadership' ? saved : 'engineer'; });
+  const [question, setQuestion] = useState('');
+  const [interpreting, setInterpreting] = useState(false);
   const [data, setData] = useState<Projection | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [refresh, setRefresh] = useState(0);
   const [evaluated, setEvaluated] = useState('');
   const [category, setCategory] = useState('all');
+  const [showAllAlerts, setShowAllAlerts] = useState(false);
   const [finding, setFinding] = useState('');
   const [explanation, setExplanation] = useState<{ explanation: string; source: string; model?: string; reason?: string } | null>(null);
   const [explaining, setExplaining] = useState(false);
   const [exporting, setExporting] = useState(false);
   const context = useRef('');
+  const draftContext = useRef('');
+  draftContext.current = `${query}:${JSON.stringify(draft)}:${question}`;
   context.current = `${query}:${JSON.stringify(applied)}:${finding}`;
   const update = <K extends keyof Scenario>(key: K, value: Scenario[K]) => setDraft(previous => ({ ...previous, [key]: value }));
-  useEffect(() => { localStorage.setItem('cloudpilot-monitoring-role', role); }, [role]);
+
   useEffect(() => { setExplanation(null); setFinding(''); }, [query, applied]);
   useEffect(() => {
     const controller = new AbortController(); setBusy(true); setError(''); setData(null);
     fetch(`${apiBase}/api/monitoring/evaluate?${query}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(applied), signal: controller.signal })
-      .then(async response => { const payload = await response.json(); if (!response.ok) throw new Error(payload.message ?? 'Unable to evaluate scenario'); return payload as Projection; })
+      .then(async response => { const payload = await response.json(); if (!response.ok) throw new Error(payload.message ?? (typeof payload.detail === 'string' ? payload.detail : 'Check scenario inputs and try again')); return payload as Projection; })
       .then(result => { if (!controller.signal.aborted) { setData(result); setEvaluated(new Date().toLocaleTimeString()); } })
       .catch((cause: unknown) => { if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Evaluation failed'); })
       .finally(() => { if (!controller.signal.aborted) setBusy(false); });
@@ -58,7 +62,7 @@ export default function Monitoring({ query, findings }: { query: string; finding
       const result = await post<{ explanation: string; source: string; model?: string; reason?: string }>(`/monitoring/explain?${query}`, { scenario: applied, recommendation_id: finding || null });
       if (context.current === requestedContext) setExplanation(result);
     }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Explanation failed'); }
+    catch (cause) { if (context.current === requestedContext) setError(cause instanceof Error ? cause.message : 'Explanation failed'); }
     finally { setExplaining(false); }
   };
   const download = async (format: string) => {
@@ -74,11 +78,18 @@ export default function Monitoring({ query, findings }: { query: string; finding
   };
   const dirty = JSON.stringify(draft) !== JSON.stringify(applied);
   return <div className="monitoring-workspace">
-    <div className="monitoring-toolbar"><div><Badge tone="green">Monitoring</Badge><span>Evaluates every 60 seconds while open · {evaluated ? `Last check ${evaluated}` : 'Preparing evidence'}</span></div><label>View for <select aria-label="Role view" value={role} onChange={event => setRole(event.target.value as Role)}><option value="engineer">Engineer</option><option value="finance">Finance</option><option value="leadership">Leadership</option></select></label></div>
-    <p className="muted">Team and source filters above scope this workspace. Role views tailor the presentation; this local demo has no tenant authentication.</p>
+    <form className="panel" onSubmit={async event => {
+      event.preventDefault(); const requestedContext = draftContext.current; setInterpreting(true); setError('');
+      try {
+        const result = await post<{ scenario: Scenario }>(`/monitoring/what-if?${query}`, { question, scenario: draft });
+        if (draftContext.current === requestedContext) { setDraft(result.scenario); setExplanation(null); }
+      } catch (cause) { if (draftContext.current === requestedContext) setError(cause instanceof Error ? cause.message : 'Could not interpret question'); }
+      finally { setInterpreting(false); }
+    }}><div className="panel-heading"><div><h3>Ask a what-if question</h3><p>The LLM fills the inputs below. Review them, then run the scenario.</p></div><button className="primary-button" disabled={interpreting || busy}>{interpreting ? 'Interpreting…' : 'Fill scenario with AI'}</button></div><label className="what-if-question">Your question<input required minLength={5} maxLength={2000} value={question} onChange={event => setQuestion(event.target.value)} placeholder="What if staging VMs shut down from 8 PM to 8 AM on weekdays?"/></label></form>
     <form className="panel" onSubmit={event => { event.preventDefault(); setApplied({ ...draft }); }}>
-      <div className="panel-heading"><div><h3>What if we switched off dev VMs overnight?</h3><p>Compare a baseline with a scheduled shutdown and a demand scenario.</p></div><button className="primary-button" disabled={busy}>Run scenario</button></div>
+      <div className="panel-heading"><div><h3>Scenario inputs</h3><p>Compare a baseline with a shutdown schedule and demand growth. {evaluated && `Last evaluated ${evaluated}`}</p></div><button className="primary-button" disabled={busy}>Run scenario</button></div>
       <div className="scenario-fields">
+        <label>Billing assumption<select value={draft.billing_mode} onChange={e => update('billing_mode', e.target.value)}><option value="commitment">Dataset: quarterly commitment (no stop savings)</option><option value="hourly">Hypothetical: hourly prorated compute</option></select></label>
         <label>Forecast horizon<select value={draft.days} onChange={e => update('days', Number(e.target.value))}>{[30, 60, 90].map(days => <option key={days} value={days}>{days} days</option>)}</select></label>
         <label>Schedule environment<select value={draft.shutdown_environment} onChange={e => update('shutdown_environment', e.target.value)}>{['development', 'staging', 'production'].map(value => <option key={value}>{value}</option>)}</select></label>
         <label>Stop at (local hour)<input type="number" min="0" max="23" required value={draft.stop_hour} onChange={e => update('stop_hour', Number(e.target.value))}/></label>
@@ -101,15 +112,15 @@ export default function Monitoring({ query, findings }: { query: string; finding
       <div className="monitoring-stats">
         <Metric label={`${applied.days}-day baseline`} value={currency(data.baseline_total)} detail="Trend extrapolation · known charges"/>
         <Metric label="Scenario cost" value={currency(data.scenario_total)} detail={`${data.selected_resources.length} running VMs selected`}/>
-        <Metric label="Conditional cost avoidance" value={currency(data.conditional_savings)} detail="Requires prorated compute billing"/>
+        <Metric label="Conditional cost avoidance" value={currency(data.conditional_savings)} detail={applied.billing_mode === 'hourly' ? 'Hypothetical hourly billing' : 'Commitments remain charged'}/>
         <Metric label="Alerts to review" value={String(data.alerts.length)} detail="Usage · cost · capacity · budget"/>
       </div>
       <section className="panel"><div className="panel-heading"><div><h3>Cost forecast & scenario</h3><p>Baseline, shutdown scenario and sensitivity range · INR per day</p></div><Badge>{applied.days} days</Badge></div><ForecastChart points={data.points}/></section>
-      {role !== 'finance' && <section className="panel"><div className="panel-heading"><div><h3>Usage & capacity outlook</h3><p>Allocated capacity and a demand-scaled estimate from historical mean CPU.</p></div></div><div className="monitoring-stats"><Metric label="Allocated vCPU-hours" value={data.usage.allocated_vcpu_hours.toLocaleString()} detail="Running VM capacity × horizon"/><Metric label="Estimated busy vCPU-hours" value={data.usage.estimated_busy_vcpu_hours.toLocaleString()} detail="Historical average · demand scaled"/><Metric label="Avoided vCPU-hours" value={data.usage.avoided_vcpu_hours.toLocaleString()} detail="Shutdown schedule capacity avoidance"/></div></section>}
+      {<section className="panel"><div className="panel-heading"><div><h3>Usage & capacity outlook</h3><p>Allocated capacity and a demand-scaled estimate from historical mean CPU.</p></div></div><div className="monitoring-stats"><Metric label="Allocated vCPU-hours" value={data.usage.allocated_vcpu_hours.toLocaleString()} detail="Running VM capacity × horizon"/><Metric label="Estimated busy vCPU-hours" value={data.usage.estimated_busy_vcpu_hours.toLocaleString()} detail="Historical average · demand scaled"/><Metric label="Avoided vCPU-hours" value={data.usage.avoided_vcpu_hours.toLocaleString()} detail="Shutdown schedule capacity avoidance"/></div></section>}
       <section className="panel"><div className="panel-heading"><div><h3>Sustainability impact</h3><p>Scenario estimates using the wattage, PUE and grid intensity above.</p></div></div><div className="monitoring-stats"><Metric label="Baseline energy" value={`${data.sustainability.baseline_kwh.toLocaleString()} kWh`} detail="Allocated compute energy model"/><Metric label="Potential energy reduction" value={`${data.sustainability.avoided_kwh.toLocaleString()} kWh`} detail="Avoided capacity × assumed power"/><Metric label="Potential carbon reduction" value={`${data.sustainability.avoided_kg_co2e.toLocaleString()} kg CO2e`} detail="Assumed intensity · unverified"/></div></section>
-      <section className="panel"><div className="panel-heading"><div><h3>Monitoring & alerts</h3><p>Findings from imported evidence, evaluated against scenario thresholds.</p></div><select aria-label="Alert category" value={category} onChange={e => setCategory(e.target.value)}><option value="all">All alerts</option>{['usage_anomaly', 'cost_increase', 'capacity_pressure', 'budget_overrun', 'data_quality'].map(value => <option key={value} value={value}>{human(value)}</option>)}</select></div><div className="monitoring-alerts">{data.alerts.filter(alert => category === 'all' || alert.category === category).map(alert => <article key={alert.id}><div><Badge tone={alert.severity === 'critical' ? 'red' : 'amber'}>{alert.severity}</Badge><span>{human(alert.category)}</span></div><h4>{alert.title}</h4><p>{alert.explanation}</p><small>Evidence timestamp: {alert.timestamp}</small></article>)}{!data.alerts.some(alert => category === 'all' || alert.category === category) && <p className="muted">No alerts match this category and scope.</p>}</div></section>
-      <section className="panel"><div className="panel-heading"><div><h3>Explain the recommendation</h3><p>Qwen uses evidence and assumptions only. A labeled rule-based fallback is available.</p></div><button className="secondary-button" disabled={explaining || dirty} onClick={() => void explain()}>{explaining ? 'Asking Qwen…' : 'Explain with Qwen'}</button></div><label className="explanation-select">Evidence to explain<select value={finding} onChange={e => { setFinding(e.target.value); setExplanation(null); }}><option value="">Current shutdown scenario</option>{findings.filter(item => ['recommendation', 'blocked'].includes(item.outcome)).map(item => <option key={item.id} value={item.id}>{item.resource_name} · {item.title}</option>)}</select></label>{explanation && <div className="plain-explanation"><Badge>{explanation.source === 'qwen' ? `Qwen · ${explanation.model}` : 'Rule-based explanation'}</Badge><p>{explanation.explanation}</p>{explanation.reason && <small>{explanation.reason}</small>}</div>}</section>
-      <section className="panel"><div className="panel-heading"><div><h3>{role === 'leadership' ? 'Share the optimization outlook' : 'Export recommendations'}</h3><p>Includes scoped findings, estimates, blockers and assumptions.</p></div><div className="button-row">{['markdown', 'json', ...(role === 'engineer' ? ['terraform'] : [])].map(format => <button key={format} className="secondary-button" disabled={exporting || dirty} onClick={() => void download(format)}>{format === 'markdown' ? 'Report (.md)' : format === 'terraform' ? 'IaC handoff (.tf)' : 'JSON'}</button>)}</div></div><p className="muted">The Terraform handoff contains provider-neutral schedule metadata and findings. Verified resource mappings and provider scheduler wiring are required before it can change infrastructure.</p></section>
+      <section className="panel"><div className="panel-heading"><div><h3>Monitoring & alerts</h3><p>Findings from imported evidence, evaluated against scenario thresholds.</p></div><select aria-label="Alert category" value={category} onChange={e => { setCategory(e.target.value); setShowAllAlerts(false); }}><option value="all">All alerts</option>{['usage_anomaly', 'cost_increase', 'capacity_pressure', 'budget_overrun', 'data_quality'].map(value => <option key={value} value={value}>{human(value)}</option>)}</select></div><div className="monitoring-alerts">{data.alerts.filter(alert => category === 'all' || alert.category === category).slice(0, showAllAlerts ? undefined : 8).map(alert => <article key={alert.id}><div><Badge tone={alert.severity === 'critical' ? 'red' : 'amber'}>{alert.severity}</Badge><span>{human(alert.category)}</span></div><h4>{alert.title}</h4>{alert.resource_name && <small>{alert.resource_name}</small>}<p>{alert.explanation}</p><small>Evidence timestamp: {alert.timestamp}</small></article>)}{!data.alerts.some(alert => category === 'all' || alert.category === category) && <p className="muted">No alerts match this category and scope.</p>}</div>{data.alerts.filter(alert => category === 'all' || alert.category === category).length > 8 && <button className="text-button" onClick={() => setShowAllAlerts(value => !value)}>{showAllAlerts ? 'Show fewer alerts' : 'Show all matching alerts'}</button>}</section>
+      <section className="panel"><div className="panel-heading"><div><h3>Explain the recommendation</h3><p>The LLM uses evidence and assumptions only. An evidence summary is shown if the LLM is unavailable.</p></div><button className="secondary-button" disabled={explaining || dirty || busy} onClick={() => void explain()}>{explaining ? 'Asking the LLM…' : 'Explain with AI'}</button></div><label className="explanation-select">Evidence to explain<select value={finding} onChange={e => { setFinding(e.target.value); setExplanation(null); }}><option value="">Current shutdown scenario</option>{findings.filter(item => ['recommendation', 'blocked'].includes(item.outcome)).map(item => <option key={item.id} value={item.id}>{item.resource_name} · {item.title}</option>)}</select></label>{explanation && <div className="plain-explanation"><Badge>{explanation.source !== 'rules' ? `LLM · ${explanation.model}` : 'Rule-based explanation'}</Badge><p>{explanation.explanation}</p>{explanation.reason && <small>{explanation.reason}</small>}</div>}</section>
+      <section className="panel"><div className="panel-heading"><div><h3>Export recommendations</h3><p>Includes scoped findings, estimates, blockers and assumptions.</p></div><div className="button-row">{['markdown', 'json'].map(format => <button key={format} className="secondary-button" disabled={exporting || dirty || busy} onClick={() => void download(format)}>{format === 'markdown' ? 'Report (.md)' : format === 'terraform' ? 'IaC handoff (.tf)' : 'JSON'}</button>)}</div></div></section>
       <details className="panel monitoring-assumptions"><summary>Methodology & limitations</summary><ul>{data.assumptions.map(item => <li key={item}>{item}</li>)}</ul></details>
     </>}
   </div>;

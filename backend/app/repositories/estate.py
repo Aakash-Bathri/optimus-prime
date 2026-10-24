@@ -44,14 +44,14 @@ def import_dataset(database_path: Path, dataset_path: Path) -> dict:
             metric_count = bulk_insert(connection, "INSERT INTO metrics VALUES (?,?,?,?,?,?,?,?,?)",
                                        source.metric_rows({resource.id for resource in resources if resource.type == "vm"}))
             gpu_count = bulk_insert(connection, "INSERT INTO gpu_metrics VALUES (?,?,?,?,?,?)",
-                                    source.gpu_rows({resource.id for resource in resources if resource.type == "gpu"}))
+                                    source.gpu_rows({resource.id: resource.gpu_vram_gib for resource in resources if resource.type == "gpu"}))
         except sqlite3.IntegrityError as exc:
             raise ValueError("Duplicate metric timestamp/resource pair in source data") from exc
         if metric_count != source.assumptions["metrics"]["metric_rows"] or gpu_count != source.assumptions["metrics"]["gpu_metric_rows"]:
             raise ValueError("Telemetry row counts disagree with the delivered manifest")
-        relationships = source.related_rows("resource_relationships.csv", {"source_resource_id", "target_resource_id"}, resource_ids)
+        relationships = source.load_relationships(resources)
         connection.executemany("INSERT INTO relationships VALUES (?)", [(json.dumps(row),) for row in relationships])
-        event_rows = source.related_rows("events.csv", {"resource_id"}, resource_ids)
+        event_rows = source.event_rows(resource_ids)
         event_index = {}
         for row in event_rows:
             if not row["event_id"]:
@@ -66,12 +66,22 @@ def import_dataset(database_path: Path, dataset_path: Path) -> dict:
         for row in billing:
             if row["resource_id"] not in resource_ids or row["synthetic"].lower() != "true":
                 raise ValueError("Invalid synthetic billing reference")
-            datetime.strptime(row["billing_month"], "%Y-%m")
+            month = datetime.strptime(row["billing_month"], "%Y-%m")
+            if month.strftime("%Y-%m") != row["billing_month"]:
+                raise ValueError("billing_history.csv: use canonical YYYY-MM billing months")
             billed = amount(row["synthetic_billed_amount_inr"])
             if billed is None:
                 raise ValueError("Missing synthetic billed amount")
             billing_rows.append((row["billing_month"], row["resource_id"], str(money(billed))))
-        connection.executemany("INSERT INTO billing VALUES (?,?,?)", billing_rows)
+        months = sorted({month for month, _, _ in billing_rows})
+        if len(months) != source.assumptions["billing_history"]["months"]:
+            raise ValueError("billing_history.csv: month count disagrees with manifest")
+        if any(int(b[:4]) * 12 + int(b[5:]) != int(a[:4]) * 12 + int(a[5:]) + 1 for a, b in zip(months, months[1:])):
+            raise ValueError("billing_history.csv: missing month in billing history")
+        try:
+            connection.executemany("INSERT INTO billing VALUES (?,?,?)", billing_rows)
+        except sqlite3.IntegrityError as exc:
+            raise ValueError("billing_history.csv: duplicate resource/month billing record") from exc
         provenance = Provenance(
             dataset_version=source.version, catalog_version=source.catalog_version,
             policy_version=POLICY.version, engine_version=f"{ENGINE_VERSION}+{source.implementation_hash[:8]}", analysis_as_of=source.end,
@@ -95,6 +105,7 @@ def import_dataset(database_path: Path, dataset_path: Path) -> dict:
                 summary = RecommendationSummary.model_validate({key: getattr(recommendation, key) for key in RecommendationSummary.model_fields})
                 connection.execute("INSERT INTO recommendations VALUES (?,?,?,?)", (recommendation.id, resource.id, recommendation.model_dump_json(), summary.model_dump_json()))
                 recommendation_count += 1
+        source.assert_unchanged()
         metadata = {
             "version": source.version, "catalog_version": source.catalog_version, "engine_version": ENGINE_VERSION,
             "implementation_hash": source.implementation_hash,

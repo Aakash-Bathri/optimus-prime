@@ -38,8 +38,9 @@ const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${baseUrl}/api${path}`, init);
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(body?.message ?? `API request failed (${response.status})`);
+    const body = await response.json().catch(() => null) as { message?: string; detail?: string | { msg: string }[]; details?: { message: string }[] } | null;
+    const detail = typeof body?.detail === 'string' ? body.detail : Array.isArray(body?.detail) ? body.detail.map(item => item.msg).join('; ') : undefined;
+    throw new Error((body?.details?.length ? body.details.map(item => item.message).join('; ') : body?.message) ?? detail ?? `API request failed (${response.status})`);
   }
   return response.json() as Promise<T>;
 }
@@ -57,7 +58,7 @@ export async function all<T>(path: string, signal?: AbortSignal): Promise<T[]> {
   const items = [...first.items];
   while (items.length < first.total) {
     const next = await get<Page<T>>(`${path}${path.includes('?') ? '&' : '?'}limit=200&offset=${items.length}`, signal);
-    if (!next.items.length) break;
+    if (!next.items.length) throw new Error('Inventory changed during loading. Refresh to reload all results.');
     items.push(...next.items);
   }
   return items;

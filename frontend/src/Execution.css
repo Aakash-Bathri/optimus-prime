@@ -22,3 +22,5 @@
 .execution .note { color: #718796; font-size: 11px; }
 .execution a { color: #176b97; text-decoration: underline; }
 @media(max-width: 650px) { .execution { padding: 16px; } .execution input[type=password] { min-width: 0; } .execution .controls > label { width: 100%; } }
+
+.execution-inputs { border: 0; padding: 0; margin: 0; min-width: 0; }

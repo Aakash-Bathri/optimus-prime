@@ -18,10 +18,14 @@ from app.execution.contracts import INSTANCE_TYPES, WorkflowError
 def extract_json(content):
     if isinstance(content, str):
         content = [{"type": "text", "text": content}]
+    if not isinstance(content, (list, tuple)):
+        raise WorkflowError("LocalStack MCP returned no AWS JSON response", 502)
     for block in content:
         if not isinstance(block, dict) or block.get("type") != "text":
             continue
-        text = block["text"]
+        text = block.get("text")
+        if not isinstance(text, str):
+            continue
         for index, character in enumerate(text):
             if character == "{":
                 try:
@@ -37,10 +41,18 @@ class Cloud:
     def __init__(self, aws_tool):
         self.tool = aws_tool
 
+    async def _invoke(self, command):
+        try:
+            return await asyncio.wait_for(self.tool.ainvoke({"command": command}), timeout=45)
+        except TimeoutError:
+            raise WorkflowError("LocalStack MCP request timed out; inspect integration state before retrying", 504) from None
+        except WorkflowError:
+            raise
+        except Exception:
+            raise WorkflowError("LocalStack MCP request failed; check the container and integration audit", 502) from None
+
     async def _call(self, command, expected):
-        result = await asyncio.wait_for(self.tool.ainvoke({
-            "command": f"ec2 {command} --region us-east-1 --output json",
-        }), timeout=45)
+        result = await self._invoke(f"ec2 {command} --region us-east-1 --output json")
         value = extract_json(result)
         if expected not in value:
             raise WorkflowError("LocalStack did not confirm the requested AWS operation", 502)
@@ -82,21 +94,23 @@ class Cloud:
         if target not in INSTANCE_TYPES:
             raise WorkflowError("Unsupported demo instance type", 422)
         # AWS modify-instance-attribute returns an empty JSON object on success.
-        result = await asyncio.wait_for(self.tool.ainvoke({"command":
-            f"ec2 modify-instance-attribute --instance-id {self._id(identifier)} "
-            f"--instance-type Value={target} --region us-east-1 --output json"}), timeout=45)
+        result = await self._invoke(f"ec2 modify-instance-attribute --instance-id {self._id(identifier)} "
+            f"--instance-type Value={target} --region us-east-1 --output json")
         # Some awslocal versions return no body. Verification below is authoritative.
         text = json.dumps(result)
         if any(marker in text.lower() for marker in ("error", "not running", "exception", "denied")):
             raise WorkflowError("LocalStack refused the instance type change", 502)
 
-    async def wait(self, identifier, state):
-        for _ in range(30):
-            current = await self.inspect(identifier)
-            if current["state"] == state:
-                return current
-            await asyncio.sleep(1)
-        raise WorkflowError("LocalStack state transition timed out; inspect the execution audit", 502)
+    async def wait(self, identifier, state, timeout_seconds=30):
+        try:
+            async with asyncio.timeout(timeout_seconds):
+                while True:
+                    current = await self.inspect(identifier)
+                    if current["state"] == state:
+                        return current
+                    await asyncio.sleep(1)
+        except TimeoutError:
+            raise WorkflowError("LocalStack state transition timed out; inspect the execution audit", 504) from None
 
 
 @asynccontextmanager
