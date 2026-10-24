@@ -1,0 +1,25 @@
+{
+    email ${acme_email}
+    admin off
+}
+${domain_name} {
+    basic_auth {
+        {env.DEMO_USERNAME} {env.DEMO_PASSWORD_HASH}
+    }
+    request_body {
+        max_size 2MB
+    }
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        X-Frame-Options DENY
+    }
+    encode zstd gzip
+    reverse_proxy frontend:80 {
+        header_up -Authorization
+    }
+    log {
+        output stdout
+        format json
+    }
+}

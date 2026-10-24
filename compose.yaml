@@ -1,0 +1,55 @@
+name: cloudpilot
+services:
+  localstack:
+    platform: linux/amd64
+    extends:
+      file: infra/localstack/compose.yaml
+      service: localstack
+  seed:
+    image: cloudpilot-backend:local
+    command: [ "sh", "-c", "python infra/seed_manual_demo.py && python infra/seed_terraform_demo.py" ]
+    environment:
+      CLOUDPILOT_LOCALSTACK_ENDPOINT: http://localstack:4566
+    volumes:
+      - app-data:/app/data/local
+    depends_on:
+      localstack:
+        condition: service_healthy
+  backend:
+    image: cloudpilot-backend:local
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    env_file: .env
+    environment:
+      CLOUDPILOT_LOCALSTACK_HOSTNAME: localstack
+      CLOUDPILOT_DATABASE_PATH: data/local/cloudpilot.sqlite3
+      CLOUDPILOT_LOCAL_TOKEN_PREFILL: "true"
+    volumes:
+      - app-data:/app/data/local
+      - ./github_app_private_key:/app/github_app_private_key:ro
+      # The official MCP server executes awslocal inside the demo container.
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "127.0.0.1:${CLOUDPILOT_API_PORT:-8002}:8001"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/api/dataset', timeout=5)" ]
+      interval: 10s
+      timeout: 6s
+      start_period: 60s
+      retries: 12
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "127.0.0.1:${CLOUDPILOT_WEB_PORT:-5173}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+volumes:
+  app-data:
+  cloudpilot-localstack:

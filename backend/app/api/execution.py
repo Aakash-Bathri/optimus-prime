@@ -37,8 +37,8 @@ async def register(binding: Binding, service=Depends(operator)):
 
 
 @router.post("/demo/setup")
-async def setup_demo(service=Depends(operator)):
-    return await service.setup_demo()
+async def setup_demo(management: Literal["manual", "terraform"] | None = None, service=Depends(operator)):
+    return await service.setup_demo(management_filter=management)
 
 
 @router.get("/demo/recommendation/{resource_id}")

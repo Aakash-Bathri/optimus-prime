@@ -1,5 +1,7 @@
+import os
 from contextlib import asynccontextmanager
 from uuid import uuid4
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
@@ -8,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
+from app.api.monitoring import router as monitoring_router
 from app.api.routes import router
 from app.api.execution import router as execution_router
 from app.execution.contracts import WorkflowError
@@ -27,9 +30,10 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
     async def lifespan(app: FastAPI):
         import_dataset(config.resolved_database_path, config.resolved_dataset_path)
         app.state.cloudpilot = CloudPilot(config.resolved_database_path)
-        app.state.execution = execution_service or ExecutionService(config.resolved_database_path, dotenv_values(ROOT / ".env"))
-        app.state.execution.engine = app.state.cloudpilot
-        app.state.execution.store.recover_interrupted()
+        if config.execution_enabled:
+            app.state.execution = execution_service or ExecutionService(config.resolved_database_path, {**dotenv_values(ROOT / ".env"), **os.environ})
+            app.state.execution.engine = app.state.cloudpilot
+            app.state.execution.store.recover_interrupted()
         yield
 
     app = FastAPI(
@@ -80,8 +84,23 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
     async def workflow_error(request: Request, exc: WorkflowError):
         return error(request, exc.status, "execution_error", str(exc))
 
+    if config.execution_enabled and config.local_token_prefill:
+        @app.get("/api/local-operator-session", include_in_schema=False)
+        def local_operator_session(request: Request):
+            # Explicitly enabled only for the loopback-bound local demo. Never cache a credential.
+            local_hosts = {"localhost", "127.0.0.1", "::1"}
+            origin = request.headers.get("origin")
+            if (request.url.hostname not in local_hosts
+                    or (origin and urlsplit(origin).hostname not in local_hosts)
+                    or request.headers.get("sec-fetch-site") == "cross-site"):
+                return JSONResponse({"message": "Local demo access only"}, status_code=403)
+            return JSONResponse({"token": config.execution_token.get_secret_value()},
+                                headers={"Cache-Control": "no-store", "Pragma": "no-cache"})
+
     app.include_router(router)
-    app.include_router(execution_router)
+    app.include_router(monitoring_router)
+    if config.execution_enabled:
+        app.include_router(execution_router)
     return app
 
 

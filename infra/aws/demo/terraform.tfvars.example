@@ -1,0 +1,21 @@
+aws_region   = "ap-south-1"
+project_name = "cloudpilot-demo"
+
+# Required before applying compute: use a domain you own and a real contact address.
+domain_name = "demo.yourcompany.com"
+acme_email  = "founder@yourcompany.com"
+# Optional: an existing public hosted zone; otherwise add the A record yourself.
+# route53_zone_id = "Z0123456789EXAMPLE"
+
+# Copy exact outputs from bootstrap and build-push.sh. These are references, not secrets.
+backend_image      = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/cloudpilot-demo/backend:replace-with-release-tag"
+frontend_image     = "123456789012.dkr.ecr.ap-south-1.amazonaws.com/cloudpilot-demo/frontend:replace-with-release-tag"
+runtime_secret_arn = "arn:aws:secretsmanager:ap-south-1:123456789012:secret:cloudpilot-demo/runtime-REPLACE"
+
+instance_type         = "t3.medium"
+data_volume_gib       = 30
+backup_retention_days = 7
+# All requests require HTTPS + gateway credentials. Narrow this to known IPs if desired.
+https_allowed_cidrs = ["0.0.0.0/0"]
+# Pin the AMI output after the initial deployment to avoid unplanned AMI replacements.
+# ami_id = "ami-0123456789abcdef0"

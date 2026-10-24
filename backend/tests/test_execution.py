@@ -348,3 +348,16 @@ def test_engine_decision_revokes_prepared_lab_approval(lab):
         'decision': 'rejected', 'version': finding['version'], 'expected_revision': finding['decision_revision']})
     assert execute(client, proposal).status_code == 409
     assert not cloud.mutations
+
+
+def test_manual_registration_does_not_require_github(lab):
+    client, service, cloud, github = lab
+    def unavailable(binding):
+        raise RuntimeError("GitHub is not configured")
+    github.snapshot = unavailable
+    response = client.post("/api/execution/demo/setup?management=manual")
+    assert response.status_code == 200, response.text
+    assert [item["resource_id"] for item in response.json()] == ["demo-manual-01"]
+    proposal = prepare(client).json()
+    assert decide(client, proposal).status_code == 200
+    assert execute(client, proposal).json()["status"] == "APPLIED"

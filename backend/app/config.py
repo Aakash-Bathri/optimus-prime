@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     database_path: Path = Path("data/local/cloudpilot.sqlite3")
     dataset_path: Path = Path("test-data")
     cors_origins: list[str] = ["http://localhost:5173"]
+    execution_enabled: bool = True
+    local_token_prefill: bool = False
     execution_token: SecretStr = SecretStr("")
 
     @property

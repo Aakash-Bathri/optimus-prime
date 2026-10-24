@@ -73,15 +73,17 @@ class ExecutionService:
         async with self.cloud_factory() as cloud:
             return [item for item in await cloud.inventory() if item["tags"].get("CloudPilotDemo") == "true"]
 
-    async def setup_demo(self):
+    async def setup_demo(self, management_filter=None):
         # Demo tags explicitly contain the management source; ordinary onboarding requires Binding.
         resources = await self.discover()
         result = []
         for resource_id, management in (("demo-api-01", "terraform"), ("demo-manual-01", "manual")):
+            if management_filter and management != management_filter:
+                continue
             matches = [item for item in resources if item["tags"].get("CloudPilotId") == resource_id
                        and item["tags"].get("Management") == management]
             if len(matches) != 1:
-                raise WorkflowError("Demo fixtures are missing or duplicated; run infra/seed_demo.ps1 first")
+                raise WorkflowError("Demo fixture is missing or duplicated; run bash infra/seed_demo.sh --terraform (macOS/Linux) or infra/seed_demo.ps1 (Windows)")
             mapping = {"repository": self.config.get("CLOUDPILOT_GITHUB_TEST_REPO"),
                        "terraform_address": "aws_instance.production_api",
                        "variables_file": "terraform.tfvars.json", "variable": "api_instance_type"} if management == "terraform" else {}

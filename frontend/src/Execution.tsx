@@ -15,8 +15,32 @@ type Audit = { sequence: number; timestamp: string; event: string; proposal_id: 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
 type EngineOptions = { production_ready: boolean; provider_blockers: string[]; candidates: { plan_id: string; vcpu: number; memory_gib: number; lab_instance_type: string | null; lab_eligible: boolean }[] };
 
-export default function Execution({ findings = [], initialRecommendationId = '' }: { findings?: Recommendation[]; initialRecommendationId?: string }) {
-  const [token, setToken] = useState('');
+export function ExecutionSetup({ token, onToken, onRegistered }: { token: string; onToken: (value: string) => void; onRegistered: (management: 'manual' | 'terraform') => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function register(management: 'manual' | 'terraform') {
+    setBusy(true); setError('');
+    try {
+      const response = await fetch(`${baseUrl}/api/execution/demo/setup?management=${management}`, {
+        method: 'POST', headers: { Authorization: `Bearer ${token}` },
+      });
+      const value = await response.json();
+      if (!response.ok) throw new Error(value.message ?? 'Registration failed');
+      onRegistered(management);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Registration failed'); }
+    finally { setBusy(false); }
+  }
+  return <section className="execution panel"><h2>Choose your demo workflow</h2>
+    <p>Manual changes run in LocalStack after approval. Terraform changes create a GitHub pull request for review and customer apply.</p>
+    <div className="controls"><label>Local operator token<input type="password" autoComplete="off" value={token} onChange={event => onToken(event.target.value)} placeholder="CLOUDPILOT_EXECUTION_TOKEN from .env" /></label>
+      <button disabled={busy || !token} onClick={() => void register('manual')}>Register manual demo</button>
+      <button disabled={busy || !token} onClick={() => void register('terraform')}>Register Terraform demo</button></div>
+    <p className="note">The local demo prefills this credential into page memory. It authorizes preview, approval and execution; GitHub uses its own App credentials.</p>
+    {busy && <p role="status">Registering demo…</p>}{error && <p role="alert" className="error">{error}</p>}
+  </section>;
+}
+
+export default function Execution({ findings = [], initialRecommendationId = '', token, management, registrationVersion }: { findings?: Recommendation[]; initialRecommendationId?: string; token: string; management: 'manual' | 'terraform' | null; registrationVersion: number }) {
   const [resources, setResources] = useState<Binding[]>([]);
   const [history, setHistory] = useState<Proposal[]>([]);
   const [proposal, setProposal] = useState<Proposal | null>(null);
@@ -24,7 +48,7 @@ export default function Execution({ findings = [], initialRecommendationId = '' 
   const [resourceId, setResourceId] = useState('demo-manual-01');
   const [action, setAction] = useState('resize');
   const [target, setTarget] = useState('m5.xlarge');
-  const [mode, setMode] = useState('llm');
+  const [mode, setMode] = useState('scripted');
   const [source, setSource] = useState('engine');
   const [engineId, setEngineId] = useState(initialRecommendationId);
   const [engineOptions, setEngineOptions] = useState<EngineOptions | null>(null);
@@ -51,7 +75,9 @@ export default function Execution({ findings = [], initialRecommendationId = '' 
     const [bindings, proposals, events] = await Promise.all([
       api<Binding[]>('/resources'), api<Proposal[]>('/proposals'), api<Audit[]>('/audit'),
     ]);
-    setResources(bindings); setHistory(proposals); setAudit(events);
+    const destinations = management ? bindings.filter(item => item.management === management) : [];
+    setResources(destinations); setHistory(proposals); setAudit(events);
+    if (destinations.length && !destinations.some(item => item.resource_id === resourceId)) setResourceId(destinations[0].resource_id);
     setProposal(current => current ? proposals.find(item => item.id === current.id) ?? current : current);
   }
   async function run(work: () => Promise<void>) {
@@ -61,6 +87,9 @@ export default function Execution({ findings = [], initialRecommendationId = '' 
       try { await refresh(); } catch { /* Preserve the original actionable error. */ }
     } finally { setBusy(false); }
   }
+  useEffect(() => { if (token) void run(refresh); }, [token, management, registrationVersion]);
+  useEffect(() => { if (management) setSource('fixture'); }, [management, registrationVersion]);
+
   async function prepare() {
     const result = source === 'engine' ? await api<Proposal>('/engine/proposals', {
       recommendation_id: engineId, target_plan_id: planId, binding_resource_id: resourceId, mode,
@@ -72,17 +101,16 @@ export default function Execution({ findings = [], initialRecommendationId = '' 
   return <section className="execution panel" aria-labelledby="execution-title">
     <div className="section-heading"><div><p className="eyebrow">ENGINE → REVIEW → LOCALSTACK / GITHUB</p>
       <h2 id="execution-title">Review and execute a change</h2></div><span>Preview → approve → execute → verify</span></div>
+    <ol aria-label="Execution journey"><li>Queue a capacity finding in Recommendations.</li><li>Choose and register a workflow on Home.</li><li>Load candidate evidence, select a destination, and prepare a preview.</li><li>Approve the preview, apply the change, and inspect the verified result.</li></ol>
     <p>Terraform resources receive a GitHub pull request for customer review and apply. Manual resources change directly in LocalStack after your approval.</p>
     <div className="controls">
-      <label>Local operator token<input type="password" autoComplete="off" value={token} onChange={event => setToken(event.target.value)} placeholder="CLOUDPILOT_EXECUTION_TOKEN from .env" /></label>
-      <button disabled={busy || !token} onClick={() => void run(refresh)}>Connect / refresh</button>
-      <button disabled={busy || !token} onClick={() => void run(async () => { await api('/demo/setup', {}); await refresh(); })}>Register demo resources</button>
+      <button disabled={busy || !token} onClick={() => void run(refresh)}>Refresh destinations</button>
     </div>
-    <p className="note">The token stays in this page's memory. Registration uses the fixtures' explicit terraform/manual tags. Run infra/seed_demo.ps1 if they are missing.</p>
+    {!resources.length && <p>Register a manual or Terraform demo on Home to begin.</p>}
     {error && <p role="alert" className="error">{error}</p>}
     {busy && <p role="status">Working… Live integrations and Terraform validation may take a minute.</p>}
     {resources.length > 0 && <>
-      <label>Recommendation source<select value={source} onChange={event => setSource(event.target.value)}><option value="engine">Queued engine finding</option><option value="fixture">Fixture controls (stub evidence)</option></select></label>
+      <label>Recommendation source<select value={source} onChange={event => setSource(event.target.value)}><option value="engine">Queued engine finding</option><option value="fixture">Demo recommendation</option></select></label>
       {source === 'engine' && <div className="engine-handoff">
         <p>Queue a resize finding from Recommendations, then test its exact candidate CPU/RAM shape on a LocalStack fixture. Historical evidence and unresolved production checks stay visible.</p>
         <div className="controls"><label>Queued finding<select aria-label="Queued finding" value={engineId} onChange={event => { setEngineId(event.target.value); setEngineOptions(null); setPlanId(''); }}>

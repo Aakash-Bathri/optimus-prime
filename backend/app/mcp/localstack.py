@@ -112,7 +112,7 @@ async def localstack(config):
         "PATH", "SYSTEMROOT", "COMSPEC", "APPDATA", "LOCALAPPDATA", "USERPROFILE", "TEMP", "TMP",
     }}
     env.update({"LOCALSTACK_AUTH_TOKEN": token, "MAIN_CONTAINER_NAME": "cloudpilot-localstack",
-                "LOCALSTACK_HOSTNAME": "localhost", "LOCALSTACK_PORT": "4566", "MCP_ANALYTICS_DISABLED": "1"})
+                "LOCALSTACK_HOSTNAME": config.get("CLOUDPILOT_LOCALSTACK_HOSTNAME", "localhost"), "LOCALSTACK_PORT": "4566", "MCP_ANALYTICS_DISABLED": "1"})
     parameters = StdioServerParameters(command=shutil.which("node"),
         args=[str(package / metadata["bin"]["localstack-mcp-server"])], env=env)
     try:

@@ -1,0 +1,13 @@
+.git
+.env
+.env.*
+**/node_modules
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/dist
+**/.terraform
+**/*.tfstate*
+data/local
+github_app_private_key
+**/*.pem

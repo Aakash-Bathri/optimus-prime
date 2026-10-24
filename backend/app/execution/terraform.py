@@ -41,6 +41,11 @@ class Terraform:
             for name, content in files.items():
                 destination = work / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
+                # The audited template pins the provider version. Its locally verified
+                # lock includes this platform's hash; a remote macOS-only h1 cannot
+                # verify the unpacked Linux provider mirror. This file is temporary.
+                if name == ".terraform.lock.hcl":
+                    content = (ROOT / "infra/demo-terraform/.terraform.lock.hcl").read_text(encoding="utf-8")
                 destination.write_text(after if name == path else content, encoding="utf-8")
             config = work / "terraform.rc"
             config.write_text("disable_checkpoint = true\n", encoding="utf-8")

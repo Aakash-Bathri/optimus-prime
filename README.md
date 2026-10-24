@@ -1,10 +1,52 @@
 # CloudPilot
 
+**New to the project? Read [CloudPilot in plain English](howtouse.md).** It explains every dashboard page, Qwen, MCP, agents, GitHub PRs and a complete user flow.
+
 A local cloud-cost review application built around the delivered `test-data/`
 benchmark. FastAPI analyzes the source files, SQLite stores versioned results and
 review decisions, and React presents inventory, telemetry, recommendation evidence,
 a review plan, simulation and explained alerts. Analysis works without credentials.
 The integrated execution lab adds approved LocalStack changes and GitHub PRs.
+
+## Run with Docker Compose
+
+Requires Docker Desktop running and a root `.env` file. Copy `.env.example` only
+if `.env` does not exist. Set `LOCALSTACK_AUTH_TOKEN` and a random
+`CLOUDPILOT_EXECUTION_TOKEN`. GitHub and LLM credentials are optional for the
+manual scripted journey.
+
+```sh
+docker compose up --build -d --wait
+```
+
+Open http://localhost:5173. The API is at http://localhost:8001/docs. Compose
+starts LocalStack, seeds the manual fixture, waits for API health, then serves
+the dashboard through Nginx. MCP runs inside the API container over stdio.
+No host Python, Node.js, Terraform or npm installation is needed.
+
+Stop existing host servers on ports 5173/8001 first, or set
+`CLOUDPILOT_WEB_PORT=5175 CLOUDPILOT_API_PORT=8003` before the Compose command. If the earlier standalone
+LocalStack stack is running, stop it with
+`docker compose --env-file .env -f infra/localstack/compose.yaml down` before starting this stack.
+
+Follow `howtouse.md`, using **Register manual demo** and **Scripted tools**.
+For optional GitHub execution, mount your PEM file read-only into the backend
+with a Compose override and set `GITHUB_APP_PRIVATE_KEY_PATH` to its container
+path. Keys are excluded from image builds. The Terraform provider is initialized
+in the API image; the automatic seed creates only the manual fixture.
+
+```sh
+docker compose ps
+docker compose logs -f backend seed localstack
+docker compose down
+```
+
+SQLite and execution audit persist in `app-data`. LocalStack fixture persistence
+depends on your license; rerun `docker compose run --rm seed` after a reset and
+register it again. Avoid `down -v` unless intentionally deleting saved data.
+The backend mounts the Docker socket because the official LocalStack MCP server
+uses Docker exec. This grants Docker-engine access; use this stack locally with
+trusted images. All published ports bind to localhost.
 
 ## Run locally
 
@@ -171,6 +213,9 @@ lock file, but exclude state and `.terraform/`. The adapter supports this audite
 root module and mapped instance-type variable. App ID, PEM and installation are
 sufficient; OAuth Client ID/secret are only for a separate GitHub sign-in feature.
 
+On macOS/Linux, run `bash infra/seed_demo.sh` for the manual journey, or add
+`--terraform` to seed both destinations. On Windows:
+
 ```powershell
 npm --prefix infra/localstack-mcp ci
 .\infra\seed_demo.ps1
@@ -196,3 +241,81 @@ Changed source decisions, evidence or live state invalidate the approval.
 
 See [workflow and recovery details](docs/PERSON_5_WORKFLOW.md). Engine decisions,
 approvals and execution audit persist in SQLite under ignored `data/local/`.
+
+### Monitoring, forecasts and bonus features
+
+Open **Monitoring & forecast** in the sidebar (`#/monitoring`). Existing environment,
+region, team, resource type, search and data source filters scope every calculation,
+alert, explanation and export.
+
+- Forecast known INR costs over the next **30, 60 or 90 days**. Monthly billing is
+  normalized to daily rates, then a linear trend is extrapolated. The chart shows a
+  sensitivity range, with a minimum 10% band that widens with evidence age. This is
+  not a calibrated confidence interval. The imported billing cutoff remains visible.
+- Simulate stopping running development VMs **20:00–08:00** by default. Change the
+  environment, local start/stop hours, IANA timezone, start weekdays, demand growth
+  and full-horizon budget. Overnight windows belong to the day they start. Time
+  windows are evaluated hourly. Storage remains charged. Savings assume prorated
+  compute and can be zero under quarterly commitments.
+- Review historical usage anomalies and data gaps, daily-normalized cost increases,
+  CPU/memory p95 capacity risks and forecast budget overruns. Thresholds are editable.
+  The page reevaluates every minute while open; this is an in-app alert feed, not an
+  unattended notification worker or email integration.
+- Compare allocated, estimated busy and avoided vCPU-hours. Sustainability estimates
+  use allocated vCPU-hours × assumed watts/vCPU × PUE, then assumed kg CO2e/kWh.
+  All three coefficients are editable. These are estimates, not metered energy or
+  verified emissions reductions.
+- Choose **Engineer**, **Finance**, or **Leadership** presentation views. Engineer
+  includes capacity details and an IaC handoff; Finance emphasizes cost, budget and
+  reports; Leadership presents consolidated cost and sustainability results. The
+  existing team filter scopes the estate. These are local presentation preferences,
+  **not authentication, authorization or secure multi-tenant isolation**.
+- Ask Qwen to explain a scenario or a specific scoped recommendation. Credentials
+  stay server-side. It uses `QWEN_API_KEY`, `QWEN_BASE_URL`, `QWEN_MODEL` when provided,
+  otherwise the existing `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `CLOUDPILOT_LLM_MODEL`.
+  The model name must contain `qwen`. Provider failures return an explicitly labeled
+  deterministic explanation without leaking provider responses or credentials.
+- Download a Markdown recommendation report or JSON evidence bundle. Engineer view
+  also exports valid, provider-neutral Terraform `locals` containing schedule metadata
+  and findings. This handoff creates no resources: verified provider resource mappings,
+  scheduler wiring and review are required before applying any infrastructure change.
+
+API: `POST /api/monitoring/evaluate`, `POST /api/monitoring/explain` and
+`POST /api/monitoring/export?format=markdown|json|terraform`. Evaluation/export bodies
+accept the scenario directly; explanation accepts `{ "scenario": {...},
+"recommendation_id": "optional scoped finding ID" }`. Budgets apply to the entire
+selected horizon. All costs exclude unavailable tariffs and use historical synthetic
+fixtures. Changing inputs requires **Run scenario** before explanations or export.
+
+### Deploy the investor demo to AWS
+
+The [AWS Terraform deployment guide](infra/aws/README.md) provides a two-stage
+Mumbai deployment: ECR/Secrets Manager bootstrap, then an authenticated HTTPS EC2
+app with encrypted persistent storage, backups, logs and infrastructure alarms.
+Hosted images disable the execution lab server-side and in the UI. A domain and
+your AWS account configuration are required before applying; no cloud resources
+are created by adding these files.
+
+### Local dashboard execution demo
+
+On Home, choose **Register manual demo** or **Register Terraform demo**. Registration
+opens Execution lab, where you preview, approve and execute a change. The Terraform
+workflow creates a PR in `CLOUDPILOT_GITHUB_TEST_REPO`; the customer merges and applies it.
+The manual workflow changes only the tagged LocalStack fixture.
+
+`docker compose up -d --build` now seeds both fixtures, persists the Terraform state
+in `app-data`, and mounts `github_app_private_key/` read-only into the backend. Set
+`GITHUB_APP_PRIVATE_KEY_PATH` to the matching relative PEM path and install the App
+on the configured demo repository with Contents and Pull requests write access.
+
+The loopback-bound Compose demo enables `CLOUDPILOT_LOCAL_TOKEN_PREFILL=true`, which
+loads the operator token into page memory through an uncached local session endpoint.
+This credential protects execution API writes and is separate from GitHub App auth.
+The endpoint rejects non-local hosts and cross-site requests. It is opt-in outside
+Compose and absent when execution is disabled. Keep it disabled on public deployments;
+do not put the credential in a Vite bundle or browser storage.
+
+Terraform preview validates the exact audited demo module with the backend’s verified
+provider lock for its OS. The repository lock is preserved; the PR changes only the
+mapped instance-size variable. This permits macOS-created demo repositories to be
+validated inside Linux Docker without disabling provider checksum checks.

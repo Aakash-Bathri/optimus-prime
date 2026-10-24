@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+# No xtrace: credentials must not enter cloud-init or systemd logs.
+dnf install -y docker python3 awscli2 curl
+systemctl enable --now docker amazon-ssm-agent
+install -d -m 0755 /usr/local/lib/docker/cli-plugins
+COMPOSE_VERSION=v5.6.0
+COMPOSE_URL="https://github.com/docker/compose/releases/download/$COMPOSE_VERSION"
+COMPOSE_TMP=$(mktemp -d)
+curl --fail --location --retry 5 "$COMPOSE_URL/docker-compose-linux-x86_64" -o "$COMPOSE_TMP/docker-compose-linux-x86_64"
+curl --fail --location --retry 5 "$COMPOSE_URL/checksums.txt" -o "$COMPOSE_TMP/checksums.txt"
+(cd "$COMPOSE_TMP" && grep -E ' [*]?docker-compose-linux-x86_64$' checksums.txt | sha256sum --check --strict -)
+install -m 0755 "$COMPOSE_TMP/docker-compose-linux-x86_64" /usr/local/lib/docker/cli-plugins/docker-compose
+rm -rf "$COMPOSE_TMP"
+install -d -m 0700 /opt/cloudpilot
+printf '%s' '${compose}' | base64 --decode > /opt/cloudpilot/compose.yaml
+printf '%s' '${caddyfile}' | base64 --decode > /opt/cloudpilot/Caddyfile
+printf '%s' '${configuration}' | base64 --decode > /opt/cloudpilot/config.json
+printf '%s' '${secret_loader}' | base64 --decode > /opt/cloudpilot/load-secrets.py
+printf '%s' '${deploy_script}' | base64 --decode > /opt/cloudpilot/deploy.sh
+printf '%s' '${backup_script}' | base64 --decode > /opt/cloudpilot/backup.py
+chmod 0700 /opt/cloudpilot/deploy.sh
+cat > /opt/cloudpilot/mount-data.sh <<'MOUNT'
+#!/usr/bin/env bash
+set -euo pipefail
+DEVICE=""
+for attempt in $(seq 1 120); do
+    # Identify the requested EBS volume by its serial, independent of NVMe numbering.
+    DEVICE=$(lsblk -dn -o PATH,SERIAL | awk -v serial='${volume_id}' '{gsub(/-/, "", $2); if ($2 == serial) {print $1; exit}}')
+    if [ -n "$DEVICE" ] && [ -b "$DEVICE" ]; then break; fi
+    sleep 5
+done
+[ -n "$DEVICE" ] && [ -b "$DEVICE" ] || { echo 'Persistent data volume is not attached'; exit 1; }
+if ! blkid "$DEVICE" >/dev/null 2>&1; then
+    # A newly created, explicitly identified data volume only; never the root disk.
+    cmp -n 1048576 "$DEVICE" /dev/zero >/dev/null || { echo "Refusing to format nonempty unrecognized volume"; exit 1; }
+    mkfs.ext4 "$DEVICE"
+fi
+[ "$(blkid -s TYPE -o value "$DEVICE")" = ext4 ] || { echo 'Unexpected data filesystem'; exit 1; }
+mkdir -p /srv/cloudpilot
+mountpoint -q /srv/cloudpilot || mount "$DEVICE" /srv/cloudpilot
+install -d -m 0750 -o 10001 -g 10001 /srv/cloudpilot/database
+mkdir -p /srv/cloudpilot/caddy-data /srv/cloudpilot/caddy-config
+MOUNT
+chmod 0700 /opt/cloudpilot/mount-data.sh
+cat > /etc/systemd/system/cloudpilot-data.service <<'UNIT'
+[Unit]
+Description=Mount CloudPilot persistent data volume
+After=network-online.target
+Wants=network-online.target
+Before=docker.service cloudpilot.service
+[Service]
+Type=oneshot
+ExecStart=/opt/cloudpilot/mount-data.sh
+RemainAfterExit=yes
+TimeoutStartSec=660
+[Install]
+WantedBy=multi-user.target
+UNIT
+mkdir -p /etc/systemd/system/docker.service.d
+cat > /etc/systemd/system/docker.service.d/cloudpilot-data.conf <<'UNIT'
+[Unit]
+Requires=cloudpilot-data.service
+After=cloudpilot-data.service
+UNIT
+cat > /etc/systemd/system/cloudpilot.service <<'UNIT'
+[Unit]
+Description=CloudPilot authenticated investor demo
+Requires=docker.service cloudpilot-data.service
+After=docker.service cloudpilot-data.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/cloudpilot
+ExecStart=/opt/cloudpilot/deploy.sh
+ExecStop=/usr/bin/docker compose -f /opt/cloudpilot/compose.yaml down
+TimeoutStartSec=1800
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=30
+[Install]
+WantedBy=multi-user.target
+UNIT
+cat > /etc/systemd/system/cloudpilot-backup.service <<'UNIT'
+[Unit]
+Description=Consistent SQLite backup before the daily EBS snapshot
+Requires=cloudpilot.service
+After=cloudpilot.service
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/cloudpilot
+ExecStart=/bin/bash -c '/usr/bin/docker compose -f compose.yaml exec -T backend python < /opt/cloudpilot/backup.py'
+UNIT
+cat > /etc/systemd/system/cloudpilot-backup.timer <<'UNIT'
+[Unit]
+Description=Daily CloudPilot SQLite backup
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+RandomizedDelaySec=300
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable cloudpilot-data.service cloudpilot.service
+systemctl enable --now cloudpilot-backup.timer
+# Start asynchronously: Terraform's EBS attachment happens after instance creation.
+systemctl start --no-block cloudpilot.service

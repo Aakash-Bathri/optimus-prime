@@ -1,0 +1,11 @@
+# Optional: copy this file into EACH Terraform root as backend.tf before init.
+# Use an EXISTING private, versioned, encrypted S3 bucket and a distinct key per root.
+terraform {
+  backend "s3" {
+    bucket       = "replace-with-your-terraform-state-bucket"
+    key          = "cloudpilot/bootstrap.tfstate" # use cloudpilot/demo.tfstate in demo/
+    region       = "ap-south-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}

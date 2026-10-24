@@ -1,8 +1,9 @@
 # Application architecture
 
 The existing local stack is retained: FastAPI + Pydantic, SQLite, React + TypeScript
-and Vite/Tailwind. Analysis uses Python's standard library; there are no new runtime
-dependencies, trained models or external services.
+and Vite/Tailwind. Core recommendation analysis uses Python rules rather than a
+trained model. Optional Qwen explanations, a LangChain planner, LocalStack MCP
+operations and GitHub PR creation are separate integrations.
 
 At startup, `DatasetSource` hashes and validates the delivered sources. The
 repository imports inventory, catalog, indexed telemetry, relationships, events
@@ -30,6 +31,11 @@ hourly/daily aggregates containing means, peaks, expected and valid sample count
 Missing buckets remain absent observations. Combined filters are applied to the
 same inventory scope used by costs, recommendations, charts, alerts and exports.
 
-Provider execution is absent. A future dedicated Docker lab must be an isolated
-adapter with exact approval, measurements and verified restore. Forecasting is a
-separate future demand input and can never override the optimizer's hard gates.
+The local execution lab can apply separately approved changes to LocalStack or
+create a GitHub PR for the supported demo Terraform mapping. It does not apply
+production cloud changes. Forecasting and what-if scenarios are available in
+Monitoring; they do not override optimizer gates or install schedules. The AWS
+hosted configuration disables the execution lab.
+
+For the current plain-English dashboard and end-to-end user flow, read
+[the project guide](../howtouse.md).
