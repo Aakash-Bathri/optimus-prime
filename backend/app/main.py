@@ -9,14 +9,15 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
 from app.api.routes import router
-from app.config import Settings
-from app.database import initialize
 from app.api.execution import router as execution_router
 from app.execution.contracts import WorkflowError
 from app.execution.service import ExecutionService
 from app.config import ROOT
 from dotenv import dotenv_values
+from app.config import Settings
+from app.engine.service import CloudPilot, DecisionConflict
 from app.models.contracts import ErrorResponse
+from app.repositories.estate import import_dataset
 
 
 def create_app(settings: Settings | None = None, execution_service=None) -> FastAPI:
@@ -24,19 +25,20 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        initialize(config.resolved_database_path)
+        import_dataset(config.resolved_database_path, config.resolved_dataset_path)
+        app.state.cloudpilot = CloudPilot(config.resolved_database_path)
         app.state.execution = execution_service or ExecutionService(config.resolved_database_path, dotenv_values(ROOT / ".env"))
         app.state.execution.store.recover_interrupted()
         yield
 
     app = FastAPI(
-        title="CloudPilot API", version="0.1.0", lifespan=lifespan,
+        title="CloudPilot API", version="0.2.0", lifespan=lifespan,
         responses={422: {"model": ErrorResponse}},
     )
     app.state.settings = config
     app.add_middleware(
         CORSMiddleware, allow_origins=config.cors_origins,
-        allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"],
+        allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type", "Authorization"],
     )
 
     @app.middleware("http")
@@ -62,7 +64,16 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError):
-        return error(request, 422, "validation_error", "Invalid request", exc.errors())
+        details = [{"type": item["type"], "location": list(item["loc"]), "message": item["msg"]} for item in exc.errors()]
+        return error(request, 422, "validation_error", "Invalid request", details)
+
+    @app.exception_handler(LookupError)
+    async def not_found(request: Request, exc: LookupError):
+        return error(request, 404, "http_404", str(exc))
+
+    @app.exception_handler(DecisionConflict)
+    async def conflict(request: Request, exc: DecisionConflict):
+        return error(request, 409, "decision_conflict", str(exc))
 
     @app.exception_handler(WorkflowError)
     async def workflow_error(request: Request, exc: WorkflowError):

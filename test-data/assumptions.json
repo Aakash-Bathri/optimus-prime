@@ -1,0 +1,75 @@
+{
+  "dataset_name": "Utho SmartCloud Optimizer synthetic benchmark",
+  "pricing_snapshot_date": "2026-10-24",
+  "pricing_source": "User-provided Pasted markdown.md public pricing snapshot",
+  "currency": "INR",
+  "price_precision": "Published precision retained; unknown values are blank/null, never zero",
+  "taxes": "GST excluded; rate not independently verified",
+  "billing_notes": [
+    "Hourly, quarterly, yearly, and 3-year prices are kept separate as published.",
+    "Quarterly monthly equivalent is derived as quarterly total / 3 and is not a provider monthly tariff.",
+    "Snapshot states powered-off VMs remain billable; stop alone gives INR 0 cash savings.",
+    "Reserved public IP tariff is unverified and stored blank.",
+    "AMD disk size/bundling is unknown; disk_gb blank for AMD plans rather than inferred.",
+    "Region-specific tariffs are unverified; region labels are synthetic deployment locations."
+  ],
+  "resource_counts": {
+    "total": 200,
+    "vm": 150,
+    "block_volume": 20,
+    "public_ip": 20,
+    "gpu": 10
+  },
+  "metrics": {
+    "interval_minutes": 15,
+    "duration_days": 30,
+    "points_per_vm": 2880,
+    "vm_count": 150,
+    "metric_rows": 432000,
+    "gpu_metric_rows": 28800,
+    "start": "2026-08-01T00:00:00",
+    "end_exclusive": "2026-08-31T00:00:00",
+    "metrics_only_for": "VM metrics cover VMs; GPU telemetry is separately stored in gpu_metrics.csv; volumes and IPs have inventory/relationship/events only"
+  },
+  "profiles": {
+    "steady_low": 20,
+    "idle": 8,
+    "memory_bound": 8,
+    "insufficient_data": 5,
+    "bursty": 25,
+    "batch": 20,
+    "weekend_dev": 25,
+    "normal": 29,
+    "anomalous": 10
+  },
+  "metric_semantics": {
+    "cpu_utilization_pct": "synthetic percentage of allocated vCPU capacity used",
+    "memory_utilization_pct": "synthetic percentage of allocated RAM in use; simulator convention, not a provider-specific cache policy",
+    "estimated_cpu_demand_cores": "derived = vCPU * cpu_utilization_pct / 100; not directly measured",
+    "estimated_memory_demand_gib": "derived = RAM GiB * memory_utilization_pct / 100; not directly measured",
+    "network_in_mbps/network_out_mbps": "synthetic throughput rates in megabits per second",
+    "quality_flag": "observed_synthetic or missing_observation; missing values remain null"
+  },
+  "billing_history": {
+    "file": "billing_history.csv",
+    "months": 6,
+    "growth_pattern": "synthetic +8 percentage points per month; month 6 is +40% vs baseline",
+    "not_an_invoice": true
+  },
+  "test_oracle": "Expected detections are in test_oracle.csv and must never be passed to the recommendation engine.",
+  "injected_anomalies": [
+    "vm-001: 24-hour CPU and network spike, day 18 at 10:00 through day 19 at 10:00",
+    "vm-002: 6-hour disk IOPS spike, day 27 at 02:00 through day 27 at 08:00"
+  ],
+  "storage_pricing": {
+    "block_storage_inr_per_gb_month": 4,
+    "object_storage_formula": "500 INR/month includes 100 GB; +4 INR/GB/month above 100 GB",
+    "snapshots_inr_per_gb": 4,
+    "snapshot_billing_interval": "unknown",
+    "reserved_public_ip_price": null,
+    "gpu_price": null
+  },
+  "synthetic_data": true,
+  "random_seed": 456,
+  "caveat": "Only pricing is transcribed from supplied snapshot; workload telemetry and resource relationships are synthetic."
+}
