@@ -1,5 +1,12 @@
 # Person 5 change workflow
 
+Integration update: the delivered engine and dashboard are now connected. Queue a
+resize finding, choose **Open in execution lab**, load candidate evidence and select
+an exact supported CPU/RAM shape. The server rechecks the source decision and
+version at approval/execution. Historical and provider blockers remain visible;
+this is an isolated lab test, not production authorization. The old JSON/stub
+handoff below remains available through the API and fixture controls only.
+
 The agreed five-step integration is implemented in `backend/app/agent/`,
 `backend/app/mcp/`, and `backend/app/execution/`. It uses the existing FastAPI app,
 SQLite and React dashboard. Person 2/3's recommendation engine can supply the

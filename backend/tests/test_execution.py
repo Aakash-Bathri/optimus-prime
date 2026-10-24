@@ -2,6 +2,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from copy import deepcopy
 from datetime import timedelta
+import shutil
 
 import pytest
 from fastapi.testclient import TestClient
@@ -78,7 +79,8 @@ class FakeTerraform:
 
 
 @pytest.fixture
-def lab(tmp_path):
+def lab(tmp_path, seeded_database):
+    shutil.copyfile(seeded_database, tmp_path / "execution.sqlite3")
     cloud = FakeCloud()
     github = FakeGitHub()
     service = ExecutionService(tmp_path / "execution.sqlite3", {"CLOUDPILOT_GITHUB_TEST_REPO": "example/demo"},
@@ -301,3 +303,48 @@ def test_integration_failure_is_visible_and_audited(lab, monkeypatch):
     assert response.status_code == 502 and response.json()["code"] == "execution_error"
     assert service.store.history()[0]["event"] == "preparation_failed"
     assert not service.store.proposals() and not cloud.mutations
+
+
+def queued_engine_finding(client):
+    finding = next(item for item in client.get('/api/recommendations?action=resize&limit=200').json()['items']
+                   if item['resource_id'] == 'vm-115')
+    response = client.patch('/api/recommendations/' + finding['id'], json={
+        'decision': 'accepted', 'version': finding['version'], 'expected_revision': finding['decision_revision']})
+    assert response.status_code == 200
+    options = client.get('/api/execution/engine/candidates/' + finding['id']).json()
+    target = next(item['plan_id'] for item in options['candidates']
+                  if item['lab_eligible'] and item['lab_instance_type'] == 'm5.xlarge')
+    return response.json(), target
+
+
+@pytest.mark.parametrize('binding', ['demo-manual-01', 'demo-api-01'])
+def test_real_engine_connects_to_both_execution_routes(lab, binding):
+    client, service, cloud, github = lab
+    finding, target = queued_engine_finding(client)
+    before = client.get('/api/optimization-plan').json()
+    response = client.post('/api/execution/engine/proposals', json={
+        'recommendation_id': finding['id'], 'target_plan_id': target,
+        'binding_resource_id': binding, 'mode': 'scripted'})
+    assert response.status_code == 200, response.text
+    proposal = response.json()
+    evidence = proposal['recommendation']['evidence']
+    assert evidence['source'] == 'engine_lab'
+    assert evidence['engine_reference']['source_resource_id'] == finding['resource_id']
+    assert evidence['engine_reference']['provider_blockers']
+    decide(client, proposal)
+    assert execute(client, proposal).json()['status'] == ('APPLIED' if binding == 'demo-manual-01' else 'PR_CREATED')
+    assert client.get('/api/optimization-plan').json() == before
+    assert client.get('/api/recommendations/' + finding['id']).json()['ready'] is False
+
+
+def test_engine_decision_revokes_prepared_lab_approval(lab):
+    client, service, cloud, github = lab
+    finding, target = queued_engine_finding(client)
+    proposal = client.post('/api/execution/engine/proposals', json={
+        'recommendation_id': finding['id'], 'target_plan_id': target,
+        'binding_resource_id': 'demo-manual-01', 'mode': 'scripted'}).json()
+    decide(client, proposal)
+    client.patch('/api/recommendations/' + finding['id'], json={
+        'decision': 'rejected', 'version': finding['version'], 'expected_revision': finding['decision_revision']})
+    assert execute(client, proposal).status_code == 409
+    assert not cloud.mutations

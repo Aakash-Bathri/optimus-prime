@@ -1,0 +1,24 @@
+.execution { padding: 24px; color: #405f75; }
+.execution h2 { font-size: 19px; margin: 8px 0; }
+.execution h3 { font-size: 16px; }
+.execution p { font-size: 12px; line-height: 1.8; margin: 10px 0; }
+.execution .section-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.execution .section-heading > span { font-size: 12px; color: #708796; }
+.execution .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 18px 0; }
+.execution label { display: grid; gap: 7px; font-size: 12px; max-width: 100%; }
+.execution input, .execution select { border: 1px solid #cbd8e1; border-radius: 5px; padding: 9px; font: inherit; background: white; max-width: 100%; }
+.execution input[type=password] { min-width: 280px; }
+.execution button { border: 1px solid #597d96; border-radius: 5px; padding: 9px 13px; background: #416e8b; color: white; cursor: pointer; font-size: 12px; }
+.execution button:disabled { opacity: .45; cursor: default; }
+.execution button:focus-visible, .execution input:focus-visible, .execution select:focus-visible { outline: 3px solid #edb34f; outline-offset: 3px; }
+.execution .proposal, .execution .engine-handoff { margin: 22px 0; padding: 20px; border: 1px solid #cbdce6; border-radius: 6px; background: #f7fafc; }
+.execution ol, .execution ul { padding-left: 24px; list-style: revert; font-size: 12px; }
+.execution li { margin: 8px 0; }
+.execution details { margin: 18px 0; font-size: 12px; }
+.execution summary { cursor: pointer; font-weight: 600; }
+.execution .error { color: #a22424; background: #fff0f0; padding: 12px; border-radius: 6px; }
+.execution pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #e8f0f5; padding: 14px; border-radius: 5px; font-size: 11px; }
+.execution .mono { overflow-wrap: anywhere; }
+.execution .note { color: #718796; font-size: 11px; }
+.execution a { color: #176b97; text-decoration: underline; }
+@media(max-width: 650px) { .execution { padding: 16px; } .execution input[type=password] { min-width: 0; } .execution .controls > label { width: 100%; } }

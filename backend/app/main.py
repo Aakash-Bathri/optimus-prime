@@ -28,6 +28,7 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
         import_dataset(config.resolved_database_path, config.resolved_dataset_path)
         app.state.cloudpilot = CloudPilot(config.resolved_database_path)
         app.state.execution = execution_service or ExecutionService(config.resolved_database_path, dotenv_values(ROOT / ".env"))
+        app.state.execution.engine = app.state.cloudpilot
         app.state.execution.store.recover_interrupted()
         yield
 

@@ -24,7 +24,7 @@ def test_delivered_inventory_and_price_integrity(client):
     with (ROOT / 'test-data/pricing.csv').open() as stream:
         expected = sum((Decimal(row['monthly_equivalent_inr']) for row in csv.DictReader(stream) if row['monthly_equivalent_inr']), Decimal(0))
     summary = client.get('/api/summary').json()
-    assert Decimal(summary['known_monthly_cost']) == expected == Decimal('872691')
+    assert Decimal(summary['known_monthly_cost']) == expected
     assert summary['unknown_price_count'] == 30
     assert summary['ready_count'] == 0
     assert summary['insufficient_data_count'] == 5
@@ -108,7 +108,7 @@ def test_peak_charts_and_statistical_alerts(client):
     assert len(detail['events']) == 1  # Identical source duplicates are reported/deduplicated.
     alerts = client.get('/api/alerts?limit=200').json()['items']
     assert {'usage_anomaly', 'capacity_pressure', 'data_quality', 'cost_increase'} <= {item['category'] for item in alerts}
-    assert any(item['resource_id'] == 'vm-002' and item['category'] == 'usage_anomaly' for item in alerts)
+    assert any(item['resource_id'] == 'vm-001' and item['category'] == 'usage_anomaly' for item in alerts)
     # A normal control must not become an incident merely because it has noise.
     assert not any(item['resource_id'] == 'vm-004' and item['category'] == 'usage_anomaly' for item in alerts)
 

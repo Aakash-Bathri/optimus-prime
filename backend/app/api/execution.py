@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, Request
 
-from app.execution.contracts import Binding, Decision, ExecuteRequest, PrepareRequest, WorkflowError
+from app.execution.contracts import Binding, Decision, EnginePrepareRequest, ExecuteRequest, PrepareRequest, WorkflowError
 
 
 def operator(request: Request, authorization: Annotated[str | None, Header()] = None):
@@ -58,6 +58,19 @@ async def prepare(body: PrepareRequest, service=Depends(operator)):
 @router.get("/proposals")
 def proposals(service=Depends(operator)):
     return service.store.proposals()
+
+
+@router.get("/engine/candidates/{recommendation_id}")
+def engine_candidates(recommendation_id: str, service=Depends(operator)):
+    from app.execution.engine_bridge import lab_candidates
+    if service.engine is None:
+        raise WorkflowError("Recommendation engine is not connected", 503)
+    return lab_candidates(service.engine, recommendation_id)
+
+
+@router.post("/engine/proposals")
+async def prepare_engine(body: EnginePrepareRequest, service=Depends(operator)):
+    return await service.prepare_engine(body)
 
 
 @router.get("/proposals/{identifier}")

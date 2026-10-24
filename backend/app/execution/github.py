@@ -119,6 +119,13 @@ class GitHub:
                     "No Terraform plan or workload benchmark was run for this candidate.\n\n"
                     "The customer reviews, merges and applies this change. Creating this PR does not change infrastructure. "
                     "To undo after apply, restore the previous variable value in a new reviewed PR.")
+            origin = proposal["recommendation"]["evidence"].get("engine_reference")
+            if origin:
+                body += (f"\n\nEngine source: `{origin['recommendation_id']}` / `{origin['source_resource_id']}`; "
+                         f"candidate `{origin['target_plan_id']}`; historical cutoff `{origin['analysis_as_of']}`. "
+                         "This PR tests the target CPU/RAM shape on the LocalStack fixture only. "
+                         "It does not authorize a Utho production change or claim equivalent hardware performance.\n\n"
+                         "Unresolved provider checks:\n" + "\n".join("- " + item for item in origin["provider_blockers"]))
             result = self.request(client, "POST", f"/repos/{repository}/pulls", json={
                 "title": f"CloudPilot: resize {binding['resource_id']} to {target}", "body": body,
                 "head": branch, "base": snapshot["base_branch"],

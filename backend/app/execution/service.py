@@ -19,13 +19,14 @@ def digest(value):
 
 
 class ExecutionService:
-    def __init__(self, path, config, cloud_factory=None, github=None, terraform=None, planner=None):
+    def __init__(self, path, config, cloud_factory=None, github=None, terraform=None, planner=None, engine=None):
         self.store = Store(path)
         self.config = config
         self.cloud_factory = cloud_factory or (lambda: localstack(config))
         self.github = github or GitHub(config)
         self.terraform = terraform or Terraform()
         self.planner = planner or Planner(config)
+        self.engine = engine
 
     @staticmethod
     def guard(binding, current):
@@ -41,6 +42,9 @@ class ExecutionService:
 
     def evidence(self, recommendation):
         record = Recommendation.model_validate(recommendation).evidence
+        if record.source == "engine_lab":
+            from app.execution.engine_bridge import revalidate
+            revalidate(self.engine, record, recommendation.get("target_instance_type"))
         now = utcnow()
         max_age = int(self.config.get("CLOUDPILOT_EVIDENCE_MAX_AGE_SECONDS", "3600"))
         if not record.checks_passed:
@@ -110,6 +114,23 @@ class ExecutionService:
             self.store.audit(None, "preparation_failed", {"resource_id": request.recommendation.resource_id,
                                                           "error_type": type(error).__name__})
             raise WorkflowError("Preparation failed; check the integration settings and audit before retrying", 502) from None
+
+    async def prepare_engine(self, request):
+        from app.execution.contracts import PrepareRequest
+        from app.execution.engine_bridge import selected, reference, lab_type
+        if self.engine is None:
+            raise WorkflowError("Recommendation engine is not connected", 503)
+        finding, candidate = selected(self.engine, request.recommendation_id, request.target_plan_id)
+        now = utcnow()
+        recommendation = Recommendation(id="lab-" + str(uuid4()), resource_id=request.binding_resource_id,
+            action="resize", target_instance_type=lab_type(candidate),
+            evidence=Evidence(version=finding.version, observed_at=now, expires_at=now + timedelta(minutes=30),
+                checks_passed=True, source="engine_lab", engine_reference=reference(finding, candidate),
+                reason=(f"LocalStack-only test of engine candidate {candidate.plan.id} for {finding.resource_id}. "
+                    f"Capacity checks passed on historical data ending {finding.provenance.analysis_as_of.isoformat()}. "
+                    "The lab instance mirrors the target CPU/RAM shape only; provider, storage, hardware performance, "
+                    "production authorization and savings remain unverified. " + finding.explanation)[:2000]))
+        return await self.prepare(PrepareRequest(recommendation=recommendation, mode=request.mode))
 
     async def _prepare(self, request):
         recommendation = request.recommendation.model_dump(mode="json")

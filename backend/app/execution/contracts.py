@@ -8,6 +8,24 @@ from pydantic import AwareDatetime, Field, model_validator
 from app.models.contracts import Contract
 
 INSTANCE_TYPES = ("m5.large", "m5.xlarge", "m5.2xlarge")
+LAB_CAPACITIES = {"m5.large": (2, 8), "m5.xlarge": (4, 16), "m5.2xlarge": (8, 32)}
+
+
+class EngineReference(Contract):
+    recommendation_id: str
+    recommendation_version: str
+    decision_revision: int = Field(ge=1)
+    source_resource_id: str
+    target_plan_id: str
+    analysis_as_of: AwareDatetime
+    provider_blockers: list[str]
+
+
+class EnginePrepareRequest(Contract):
+    recommendation_id: str
+    target_plan_id: str
+    binding_resource_id: str
+    mode: Literal["llm", "scripted"] = "llm"
 
 
 class Binding(Contract):
@@ -40,7 +58,8 @@ class Evidence(Contract):
     observed_at: AwareDatetime
     expires_at: AwareDatetime
     checks_passed: bool
-    source: Literal["stub", "engine"]
+    source: Literal["stub", "engine", "engine_lab"]
+    engine_reference: EngineReference | None = None
     reason: str = Field(min_length=1, max_length=2000)
 
     @model_validator(mode="after")
