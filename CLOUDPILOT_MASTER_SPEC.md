@@ -1,249 +1,551 @@
 # CloudPilot — Verified FinOps Autopilot
-## Master product specification for Utho / TransfiNITTe 2026
+## Complete Product, AI Agent, ML, Infrastructure & Implementation Specification
 
-**Status:** implementation-ready consolidated brief  
-**Date:** 24 October 2026  
+**Utho / TransfiNITTe 2026**
 
-**Timebox:** approximately 40–42 hours for the MVP; up to 5 hours CPU-side ML experimentation  
-**Primary development constraint:** Windows + approximately 8 GB laptop RAM; avoid GPU requirements and heavy multi-service installations.  
-
-
-> **Product positioning:** CloudPilot is a risk-aware cloud optimization control plane. It identifies waste, forecasts future workload demand, chooses **valid provider configurations** under safety constraints, tests selected changes, estimates **defensible** savings, and routes approved work through either customer-owned GitOps, a controlled direct-API mode, or manual export. It is not merely a metrics dashboard or an LLM guessing VM sizes.
-
----
-
-## 1. Source of truth, problem and scope
-
-### 1.1 Official problem statement
-
-Source: uploaded **`TF'26 PROBLEM STATEMENTS.pdf`**, Utho section **pages 44–47** (SmartCloud Optimizer).
-
-- Target user: infrastructure team at a mid-sized Indian SaaS company with **50–150 VMs**, deployed across **Noida, Bangalore and Mumbai**, separated into **prod, staging and dev**. The monthly cloud bill has grown **40% in six months**.
-- Primary deliverable: a locally runnable working prototype converting cloud inventory, resource-usage telemetry and prices into **specific, safe, explainable and costed optimization recommendations**.
-- Data can be synthetic or from real APIs. Required minimum fields: resource ID, name, type, region, environment, owner/team, vCPU, RAM, disk, creation date; **30 days of 5–15-minute** CPU, memory, disk usage/IOPS and network in/out; pricing per plan/resource.
-- Include realistic steady-low, bursty, batch, weekend-idle, orphaned, and anomalous workloads.
-- **Must-have screens/capabilities:** filtered resource-utilization dashboard with drilldowns; p95/p99-aware rightsizing; idle/orphan cleanup and off-hours scheduling; recommendations with exact action/reason/monthly saving/risk or confidence; interactive before/after cost totals recalculated as recommendations are accepted/rejected; alerts for anomalies, capacity and budget changes.
-- **Bonus possibilities:** 30–90-day cost forecasting, what-if simulation, plain-English explanations, report/IaC exports, carbon view, roles/multitenancy.
-- Deliverables: source + README, runnable MVP, dashboard, recommendation engine with savings, explicit assumptions sheet, **5–7-minute demo**.
-- Scoring: **safety/effectiveness 25%; implementation 20%; transparent cost accuracy 20%; originality 15%; usability 10%; scalability/applicability 10%.** Thus 65% of score rewards core engineering and defensible economics.
-
-### 1.2 The winning proposition
-
-**Verified Savings:** every suggested change has an evidence packet, a safety verdict, modeled economics, optional real workload replay, and a proposed execution path. Crucial demo: **reject a cheap plan because a daily burst or application SLO would break**.
-
-### 1.3 Explicit non-goals for the hackathon
-
-- No production auto-apply, uncontrolled delete, or automatic manipulation of real customer infrastructure.
-- No requirement for real Utho credentials, customer GitHub permissions or paid cloud services.
-- No pretense that AWS emulation reproduces Utho APIs or true hardware/network performance.
-- No need to self-host all of OptScale, train large neural networks, or fine-tune an LLM on 18 examples.
-- No fabricated actual savings, SLO results, public pricing, provider API coverage or cloud access.
+**Date:** 24 October 2026\
+**Implementation window:** 40–42 hours, with approximately five hours allocated to CPU-side ML experimentation\
+**Team:** Four contributors\
+**Development environment:** Windows, approximately 8 GB RAM\
+**Delivery:** Working local prototype, complete source code, reproducible experiments, infrastructure workflows, documentation, and a 5–7-minute demonstration
 
 ---
 
-## 2. Product screens and end-to-end journey
+## 1\. Product Vision
 
-1. **Overview:** spend by region/environment/team; current and modeled post-approval cost; safe savings, high-risk resources, budget trends, alerts.
-2. **Resource explorer:** 100–120 VMs + volumes/IPs; filters and 30-day drilldown for CPU, memory, disk, IOPS, network, hourly heatmap.
-3. **Recommendation center:** target **provider plan ID and concrete CPU/RAM/storage/network implications**, reason, monthly saving, uncertainty, safety checklist, risk classification, evidence, accept/reject.
-4. **What-if simulator:** workday-only dev schedule, alternative plans, burst/traffic scenarios; before/after price recomputed with no double-counting.
-5. **Alerts:** abnormal usage/cost, approaching capacity and budget overrun, with threshold/baseline, impact and timestamp.
-6. **Verification laboratory:** original vs proposed limits, historical/counterfactual replay and (for one sample app) Docker+k6 measured p95 latency, errors and throttling; distinguish **simulated vs measured**.
-7. **Execution center:** recommend → approve exact action → generate GitHub Terraform PR/dry run **or** controlled API dry-run **or** manual runbook → status/audit trail.
-8. **Explainability/copilot (P1):** natural-language read-only explanations grounded in evidence; model cannot invent statistics or perform mutation without backend-enforced authorization.
+CloudPilot is an AI-assisted cloud FinOps optimization control plane that discovers infrastructure waste, forecasts demand, identifies cost-saving opportunities, validates proposed configurations, calculates defensible savings, and prepares approved infrastructure changes for execution.
 
-Recommended demo story: 8-vCPU production API with low mean utilization → 2-vCPU candidate appears cheaper but fails peak/SLO test → 4-vCPU candidate passes → show risk and monthly savings → user approval → Terraform PR/dry run → post-change verification workflow. Also show one `insufficient_data` abstention.
+It combines deterministic optimization, machine learning, scenario simulation, workload benchmarking, cloud-provider integrations, an MCP-enabled agent, and customer-controlled infrastructure automation.
 
----
+Every recommendation includes its supporting evidence, target configuration, pricing assumptions, safety checks, risk assessment, and execution history.
 
-## 3. Architecture and stack
+**Product objective:** Convert cloud optimization opportunities into measurable, explainable, validated, and auditable infrastructure changes.
 
-```text
-Data sources: SyntheticUthoAdapter | Bitbrains/Materna import | Utho read-only adapter (optional)
-       ↓
-Ingestion + normalization (FastAPI / Pydantic) → DuckDB + Parquet metrics; SQLite metadata/events
-       ↓
-Feature engine (lags, seasonal peaks, p95/p99, missingness, capacity, dependencies)
-       ├── Baselines and ML (Ridge, Random Forest, LightGBM quantile)
-       ├── Valid plan catalog + constrained cost optimizer
-       ├── Hard policy gates + probabilistic scenario-risk estimates
-       └── Verification: simulated replay + Docker/k6 SLO benchmark
-       ↓
-Recommendations (evidence, source, model version, risk, savings, action state)
-       ↓
-React UI + what-if simulations + read-only AI explanation
-       ↓
-Explicit approval & controlled executor
-       ├── GitOps: customer-authorized GitHub App → branch/PR → CI Terraform plan
-       ├── Direct API: ONLY unmanaged resources, permitted adapter & approval
-       └── Export: detailed manual runbook / script / IaC proposal
-       ↓
-Audit → monitor/verify outcomes → compare predicted and realized savings
+## 2\. Problem Statement and Evaluation Objectives
+
+The product targets an infrastructure team at a mid-sized Indian SaaS company managing 50–150 VMs across Noida, Bangalore, and Mumbai, with production, staging, and development environments.
+
+The reference problem describes a cloud bill that has increased 40% over six months.
+
+The prototype accepts synthetic data, public workload traces, or connected provider data and produces concrete optimization recommendations.
+
+### Required capabilities
+
+- Filterable resource-utilization dashboard with historical drilldowns.
+- CPU and memory rightsizing based on p95, p99, peaks, and future demand.
+- Idle resource detection, orphan cleanup review, and non-production scheduling.
+- Exact candidate plan, projected monthly savings, explanation, confidence, and risk.
+- Interactive before-and-after cost calculations.
+- Budget, utilization, anomaly, and capacity alerts.
+- Reproducible data generation, documented assumptions, and a runnable local application.
+
+### Additional capabilities
+
+- Thirty- to ninety-day cost forecasting.
+- Workload what-if simulation.
+- Natural-language explanations.
+- Terraform and report exports.
+- Carbon and energy analysis.
+- Role-based access control and multi-tenancy.
+- MCP-based agent orchestration and controlled tool execution.
+- Automated evidence generation, approval, and infrastructure proposals.
+
+### Evaluation alignment
+
+| Evaluation dimension | CloudPilot implementation |
+| --- | --- |
+| Safety and effectiveness — 25% | Policy gates, demand replay, dependency checks, benchmark validation |
+| Implementation — 20% | Working application, APIs, agent tools, optimizer, integrations |
+| Cost accuracy — 20% | Versioned prices, billing rules, savings reconciliation |
+| Originality — 15% | Verified Savings, MCP orchestration, SLO-aware counterfactual testing |
+| Usability — 10% | Interactive dashboards, explanations, approvals |
+| Scalability and applicability — 10% | Adapter architecture, modular services, multi-cloud data model |
+
+## 3\. End-to-End Product Experience
+
+CloudPilot provides the following connected workspaces.
+
+1. **Overview:** Spend by region, environment, and team; modeled savings; budget trends; risk indicators and alerts.
+2. **Resource Explorer:** Inventory, filters, CPU, memory, disk, IOPS, network, and historical utilization heatmaps.
+3. **Recommendation Center:** Exact current and proposed configurations, action, reason, cost impact, risk, evidence, and accept/reject controls.
+4. **What-if Simulator:** Alternative plans, workday schedules, traffic multipliers, future demand, and portfolio cost comparisons.
+5. **Alerts:** Abnormal cost or utilization, capacity thresholds, and budget forecasts.
+6. **Verification Laboratory:** Historical replay, counterfactual scenarios, Docker/k6 benchmarks, latency, errors, throttling, and restart metrics.
+7. **Execution Center:** Approval, Terraform proposals, GitHub pull requests, API dry runs, manual runbooks, audit records, and verification.
+8. **AI Copilot:** Natural-language questions, evidence-grounded explanations, recommendation summaries, and review routing.
+9. **Agent Activity and Audit:** MCP tool invocations, decisions, evidence references, authorization results, and execution state.
+10. **Reports and Governance:** Exportable evidence packets, pricing assumptions, usage reports, access controls, and change history.
+
+### Demonstration scenario
+
+An eight-vCPU production API appears underutilized on average. The optimizer evaluates two- and four-vCPU alternatives. Peak demand and application benchmarks expose the risk of the smaller candidate. A validated alternative is presented with its savings, evidence, and approval requirements. The user approves a Terraform proposal, reviews its dry-run result, and examines the verification workflow.
+
+The demo also includes an insufficient-data recommendation, a scheduled development workload, an orphaned volume requiring ownership verification, and an anomaly alert.
+
+## 4\. Complete Architecture
+
+text
+
+```
+Data Sources
+  ├── Synthetic Utho Adapter
+  ├── Bitbrains / Materna Dataset Imports
+  ├── Utho Read-Only API Adapter
+  └── AWS-Compatible Emulator / API Mock
+                |
+                v
+Ingestion and Normalization
+  ├── FastAPI / Pydantic
+  ├── DuckDB / Parquet
+  └── SQLite Metadata and Events
+                |
+                v
+Feature Engineering
+  ├── Temporal Lags and Rolling Statistics
+  ├── p95 / p99 / Peaks / Missingness
+  ├── Capacity and Dependency Features
+  └── Workload Classification
+                |
+                v
+Analytics and Decision Services
+  ├── Historical Percentile Baselines
+  ├── Ridge / Random Forest / LightGBM
+  ├── Optional XGBoost / Neural Models
+  ├── Valid Provider Plan Catalogue
+  ├── Constrained Cost Optimizer
+  ├── Hard Safety Gates
+  └── Scenario Risk Assessment
+                |
+                v
+Verification and Evidence
+  ├── Historical Counterfactual Replay
+  ├── Docker + k6 Workload Benchmark
+  ├── Optional Prometheus Metrics
+  └── Verified Savings Evidence Packet
+                |
+                v
+MCP Agent and Application API
+  ├── Read-Only Resource and Metric Tools
+  ├── Optimization and Simulation Tools
+  ├── Risk and Evidence Tools
+  ├── Explanation / Review Routing
+  └── Approval-Bound Change Tools
+                |
+                v
+React + Vite + TypeScript UI
+                |
+                v
+Explicit Authorization and Execution
+  ├── Customer-Owned GitOps / GitHub PR
+  ├── Controlled Direct Provider API
+  └── Manual Runbook / Script / IaC Export
+                |
+                v
+Audit → Monitoring → Verification → Feedback
 ```
 
-**Preferred implementation:** React + Vite + TypeScript + Tailwind + Recharts; Python FastAPI/Pydantic; Pandas/NumPy/scikit-learn + LightGBM; DuckDB+Parquet and SQLite; Docker Compose; pytest; k6. OR-Tools optional for portfolio-wide optimization; Redis/Postgres/Kubernetes are **not** required.
+### Technology stack
 
-Use typed, swappable interfaces:
-- `CloudInventoryAdapter`, `MetricsAdapter`, `PricingAdapter`, `ExecutionAdapter`.
-- `SyntheticUthoAdapter` is first-class and fully functional without secrets.
-- `FlociAwsAdapter` is **AWS control-plane test only**; do not pretend it speaks native Utho API.
-- `UthoAdapter` is an optional read-only integration, with testable interface and no mandatory API key.
+- **Frontend:** React, Vite, TypeScript, Tailwind CSS, Recharts.
+- **Backend:** Python, FastAPI, Pydantic.
+- **Data:** Pandas, NumPy, DuckDB, Parquet, SQLite.
+- **ML:** scikit-learn, LightGBM, optional XGBoost and small neural networks.
+- **Optimization:** Deterministic candidate enumeration; optional OR-Tools for portfolio constraints.
+- **Testing:** pytest, Docker, k6, optional Prometheus.
+- **Infrastructure:** Terraform, Utho provider, GitHub Apps, GitHub Actions.
+- **Agent:** MCP tools, an agent orchestration layer, optional Jev/TypeSafe review routing.
+- **Emulation:** Floci and LocalStack for selected AWS-compatible control-plane operations.
 
-Suggested folders: `frontend/`, `backend/app/api/`, `backend/app/engine/`, `backend/app/ml/`, `backend/app/adapters/`, `backend/app/models/`, `backend/tests/`, `data/generate_data.py`, `data/catalog/`, `experiments/`, `infra/demo-terraform/`, `docs/`, `docker-compose.yml`, `README.md`.
+Redis, PostgreSQL, Kubernetes, GPUs, and a full multi-service OptScale deployment are not prerequisites for the core local architecture. They can be incorporated where the deployment requirements justify them.
 
----
+### Suggested repository structure
 
-## 4. Data strategy (real telemetry + synthetic demo + supervised labels)
+text
 
-### 4.1 Real datasets considered
+```
+cloudpilot/
+├── frontend/
+├── backend/app/
+│   ├── api/
+│   ├── engine/
+│   ├── ml/
+│   ├── agent/
+│   ├── mcp/
+│   ├── adapters/
+│   ├── execution/
+│   └── models/
+├── backend/tests/
+├── data/
+│   ├── generate_data.py
+│   ├── catalog/
+│   └── fixtures/
+├── experiments/
+├── infra/
+│   ├── demo-terraform/
+│   ├── floci/
+│   └── localstack/
+├── docs/
+├── docker-compose.yml
+├── Makefile
+└── README.md
+```
 
-| Dataset / access | Scale / fields | Decision |
-|---|---|---|
-| [Bitbrains GWA-T-12 fastStorage](https://atlarge-research.com/gwa-t-12/) ([ZIP](https://atlarge-research.com/gwa-traces/gwa_t_12_fastStorage.zip)) | ~128 MB; 1,250 VMs, ~5-minute CPU provisioned/used, memory provisioned/used, disk **throughput**, network | **Primary real ML workload data.** Sample ~100 VMs, ~30 days at 15 minutes, keep interval **max** as well as means. |
-| [Preprocessed Bitbrains 100 FNvs](https://github.com/alhamedy/Dataset-used-to-build-the-time-series-prediction-models) | Two GitHub CSVs, ~14 MB, 100 VMs, CPU/memory at 15-minute resolution | Quick prototype; loses disk/network. |
-| [GWA-T-13 Materna](https://atlarge-research.com/gwa-t-13/) | ~145 MB; enterprise utilization / VM specs / I/O | Optional **external-validation** subset after normalization. |
-| [Bitbrains Rnd](https://atlarge-research.com/gwa-t-12/) ([ZIP](https://atlarge-research.com/gwa-traces/gwa_t_12_rnd.zip)) | ~156 MB, 500 VMs, complementary workloads | Optional extra generalization. |
-| [Azure Public Dataset V1](https://github.com/Azure/AzurePublicDataset/blob/master/AzurePublicDatasetV1.md) | ~78.5 GB compressed, ~1.25 billion 5-min CPU observations | **Do not download whole dataset.** CPU time series only; lacks corresponding complete VM-level RAM/disk/network utilization. |
-| [Azure VM Noise 2024](https://github.com/Azure/AzurePublicDataset/blob/master/AzureVMNoiseDataset2024.md) | ~277 MB benchmark variability | Optional performance-risk research, not main VM labels. |
-| [Alibaba 2017 Cluster Trace](https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2017) | CPU/memory/disk and scheduling; only 12 hours of disclosed usage in original trace | Optional workload/scheduling stress test, not 30-day forecasting. |
-| [Processed Google Cluster CPU subset](https://zenodo.org/records/6979672) | ~2.4 MB CPU-only | Tiny forecasting sanity check. |
+## 5\. MCP Agent Architecture
 
-**Limits to declare:** Bitbrains disk columns describe read/write throughput, **not used disk bytes or disk IOPS**. Add separately labeled synthetic disk-capacity/IOPS fields for demo; never present them as measured Bitbrains labels. Source and real/synthetic provenance accompany every sample.
+The MCP agent is a first-class CloudPilot component. It provides a structured interface through which an AI agent can retrieve infrastructure evidence, invoke optimization services, compare scenarios, explain recommendations, and prepare approved change proposals.
 
-### 4.2 Labeled optimization / supervised learning datasets
+MCP supplies tool interoperability; CloudPilot's backend supplies authorization, policy enforcement, and execution control.
 
-| Source | What it labels | Proper use |
-|---|---|---|
-| [Synthesized Cloud Optimization Recommendations (HF)](https://huggingface.co/datasets/ameau01/synthesized-cloud-optimization-recommendations) | **18** hand-crafted scenarios: telemetry, Terraform, actions, reasoning, risk, saving; AWS nomenclature | Schema inspiration and **separate** decision-agent eval; too few for serious SFT. |
-| [Multi-Cloud Resource Dataset (Kaggle)](https://www.kaggle.com/datasets/freshersstaff/multi-cloud-resource-dataset) | Approximately 1,000 labeled `scale_up/scale_down/no_action` cases; CPU, RAM, VM specs and telemetry | Small prototype **only**: labels/plan names may be inconsistent and are not verified as safe. |
-| [Example CSV + XGBoost code](https://github.com/dhanushmb/Intelligent-Cloud-Cost-Optimization-Forecasting-System-/) | `data-importer-service/multi_cloud_dataset.csv`, `ml-analytics-service/recommendation.py` | Code/label-format reference; inspect and warn about questionable labels. |
-| [AWS Compute Optimizer export documentation](https://docs.aws.amazon.com/compute-optimizer/latest/ug/exporting-recommendations.html) | Provider-generated recommendations available within an authorized account | Potential future real teacher labels; **not** a public ready-to-download dataset. |
-| [Lorentz: Learned SKU Recommendation Using Profile Data](https://www.microsoft.com/en-us/research/publication/lorentz-learned-sku-recommendation-using-profile-data/) | Research method for learning allocation from profiles, capacity labels and customer feedback | Research inspiration; **not** a downloadable labeled Utho dataset. |
+### MCP tool catalogue
 
-**Our labeled set:** create teacher/reference-policy labels from real workload histories + a **versioned Utho-like plan catalogue**. For each time window, evaluate all valid plans against *future* replayed demand/constraints to derive a reference safe plan/action, saving, and risk. In training examples, features can only use data available **before** the future window. Label as **algorithm-derived / synthetic**, not proven production optimal. Include `upsize`, `downsize`, `schedule`, `no_action`, `review_orphan`, `defer_insufficient_data` where logically justified.
+**Read-only tools**
 
-**Key ML distinction:** XGBoost/Random Forest classifiers are **supervised learning**, not LLM SFT. LLM supervised fine-tuning would need many more curated input→explanation/decision examples and is **out of MVP scope**. A model imitating teacher labels cannot automatically be claimed better than its teacher.
+- `list_resources`
+- `get_metrics`
+- `get_candidate_plans`
+- `run_optimization`
+- `run_risk_assessment`
+- `simulate_change`
+- `get_alerts`
+- `get_cost_breakdown`
+- `get_verification_evidence`
+- `get_ml_benchmarks`
+- `get_dependency_graph`
+- `get_recommendation_details`
 
-### 4.3 Synthetic Utho demo estate
+**Controlled action tools**
 
-- Deterministically generate **120 VMs × 30 days × 96 samples/day = 345,600 VM observations**, plus block volumes, unattached disks, public IPs and 6-month billing snapshots; all keyed by resource ID.
-- Regions: Noida, Bangalore, Mumbai; tags: prod/staging/dev; owner/team; vCPU, RAM, disk, plan, created date, criticality, management mode (`terraform`/`unmanaged`/`unknown`), dependency edges.
-- Workload patterns: steady-low, dangerous burst peaks, nightly batch jobs, weekday-only dev, genuine anomaly, orphaned volume/IP, memory bound, network/disk bound, insufficient telemetry, realistic cost spikes.
-- Separate `observed`, `derived`, `simulated`, `assumed` in schema. Version the price catalogue and assumptions. Use Utho catalogue fixtures and/or documented lookup; never hardcode unsupported arbitrary plan IDs as real provider plans.
-- Keep disk occupancy, IOPS, SLO traces, owner/dependencies and cost billing assumptions **synthetic** unless observed from connected sources.
-- Use reproducible seeded generator, small Parquet and CSV fixtures; do not ship a 128 MB archive inside repo without need.
+- `create_change_proposal`
+- `generate_terraform_diff`
+- `validate_terraform_plan`
+- `open_pr`
+- `request_approval`
+- `get_change_status`
 
----
+Action tools enforce authorization and approval requirements in the backend. Tool availability does not itself grant permission to modify infrastructure.
 
-## 5. ML engine: forecasting vs direct recommendation
+### Agent decision flow
 
-**Preferred design: predictive model + constrained optimizer + independent safety validation.** Do **not** directly regress arbitrary numbers of vCPU, GB RAM and storage, because CSPs offer discrete, region-dependent plans and resizing may be restricted.
+1. Receive a user question or optimization task.
+2. Retrieve relevant resource inventory, telemetry, pricing, and dependency information.
+3. Call the deterministic optimization engine to generate candidate actions.
+4. Request independent policy and risk validation.
+5. Compare candidate costs, savings, constraints, and evidence.
+6. Explain the recommended action using retrieved evidence.
+7. Present the exact proposed change for approval.
+8. After authorization, invoke the configured proposal or execution workflow.
+9. Retrieve the change status and verification evidence.
+10. Record the decision, tool calls, evidence versions, and outcomes.
 
-1. **Features:** current allocatable cores/RAM/disk, CPU cores used / pct, memory GB used, disk read/write, network traffic, p50/p95/p99/max, temporal lags, rolling maxima, hourly/weekly cyclical features, missingness, service/env/criticality, forecast horizon.
-2. **Targets:** e.g., maximum CPU cores used / max RAM GB / maximum throughput during *next hour* (or day), with conservative prediction intervals / high quantiles.
-3. **Comparison:** rolling-p99 / seasonal naive baseline; Ridge; shallow RandomForest; **LightGBM quantile** (preferred); XGBoost optional; small MLP and LSTM/Transformer only if time remains. Fit per-resource CPU and RAM demand first; do not require GPU.
-4. **Split:** chronological train days 1–21, validation 22–25, test 26–30 with gap/purge for overlapping target windows; hold out entire VM IDs for a separate cold-start/generalization test. No random interleaving of the same VM timestamps across train/test.
-5. **Evaluation:** pinball loss / quantile empirical coverage, peak under-prediction rate, constraint breach rate, cost of chosen plan, oracle regret under synthetic future replay, inference runtime/memory. Compare to **simple historical-p99 rule** and show when ML abstains/underperforms.
-6. **Training machine:** 8 GB RAM; sample ~50–100 VMs / 15-minute aggregates; batch CPU training; cap `n_jobs`; expected experiment wall-clock budget ~5 hours (not a guaranteed runtime).
+### Agent boundaries
 
-**Candidate objective:** among provider-valid plans `p`, minimize `monthly_cost(p) + lambda * modeled_risk(p) + migration_cost(p)` subject to hard CPU/RAM/disk/network/IOPS/SLO/compatibility constraints. Enumerate catalogue plans; OR-Tools only if a multi-VM budget/dependency problem requires it.
+- The agent does not invent telemetry, provider prices, plan IDs, or benchmark results.
+- Hard policy failures cannot be overridden by an LLM.
+- Recommendations and explanations remain separate from execution authorization.
+- Mutating operations require action-specific, resource-specific approval.
+- Every action rechecks evidence freshness, resource ownership, configuration revision, and permissions.
+- Tool errors and missing data are surfaced explicitly.
 
-**CPU sanity approximation (same architecture family only):** `predicted_cpu_pct = observed_cpu_pct * current_vcpu / target_vcpu`. It ignores scheduling, contention and architectural differences; require benchmark when possible. Never blindly downsize based on mean CPU or an LLM's guess.
+The agent can use deterministic tool calls without an external LLM for reproducible demonstration scenarios. A configured LLM adds conversational planning and explanation capabilities.
 
----
+## 6\. Data Sources and Public Dataset Research
 
-## 6. Optimization engine and economics
+CloudPilot combines public workload traces, external recommendation examples, algorithm-derived labels, and a reproducible synthetic Utho estate.
 
-**Supported actions:** VM `upsize/downsize` to an existing plan, non-prod scheduled stop/start, investigate idle/possibly delete, cleanup unowned/unattached disks/IPs after ownership verification, and `no_action/defer`. Show network/storage improvements where *provider capacity and charge models support them*; otherwise label them as analysis, not executable promises.
+### Workload datasets
 
-**Checks on each candidate:** CPU high quantile and short peaks; physical RAM GB; disk usage/headroom/growth and separately IOPS; network bandwidth; valid SKU for region; architecture/family/license compatibility; inter-resource dependency graph; environment criticality; telemetry coverage; billing type; scheduled dependencies; rollback path; cloud/provider action limitations.
+| Dataset | Intended use |
+| --- | --- |
+| [Bitbrains GWA-T-12 fastStorage](<https://atlarge-research.com/gwa-t-12/>) | Primary workload time series; approximately 1,250 VMs, with CPU, memory, disk throughput, and network-related metrics |
+| [fastStorage archive](<https://atlarge-research.com/gwa-traces/gwa_t_12_fastStorage.zip>) | Raw workload import |
+| [Preprocessed Bitbrains CSVs](<https://github.com/alhamedy/Dataset-used-to-build-the-time-series-prediction-models>) | Quick CPU/memory experiments |
+| [GWA-T-13 Materna](<https://atlarge-research.com/gwa-t-13/>) | Additional workload validation |
+| [Bitbrains Rnd](<https://atlarge-research.com/gwa-traces/gwa_t_12_rnd.zip>) | Complementary workload patterns |
+| [Azure Public Dataset V1](<https://github.com/Azure/AzurePublicDataset/blob/master/AzurePublicDatasetV1.md>) | Selected CPU trace analysis; process relevant subsets instead of loading the full archive |
+| [Azure VM Noise 2024](<https://github.com/Azure/AzurePublicDataset/blob/master/AzureVMNoiseDataset2024.md>) | Performance variability research |
+| Alibaba Cluster Trace 2017 | Scheduling and workload stress tests |
+| [Google Cluster CPU subset](<https://zenodo.org/records/6979672>) | Lightweight forecasting sanity checks |
 
-**Cost model:** exact versioned catalogue prices where available; separate compute, block volumes, IP, backups and egress; respect minimum billing terms and actual stop-instance charging rules. Calculate `current monthly projected spend - recommended projected spend - one-time amortized change cost` as appropriate; show gross monthly saving separately from one-time migration costs. Never assume stopping a monthly-billed VM stops charges. Do not double-count resize plus schedule or overlapping recommendations. Accept/reject instantly recomputes **accepted portfolio savings**; also keep *potential unapproved* separate.
+Bitbrains disk throughput is not equivalent to disk capacity utilization or IOPS. Those fields are separately sourced or synthesized and labelled accordingly.
 
-**Approval card required:** resource + exact current/target plan and specs, action prerequisites, measured utilization and forecast, evidence freshness, modeled price and monthly saving, `safe/review/blocked/insufficient_data`, reasons, confidence/risk explanation, approval/rollback, latest plan & IaC revision IDs.
+### Recommendation and supervised-learning datasets
 
----
+| Source | Intended use |
+| --- | --- |
+| [Synthetic Cloud Optimization Recommendations](<https://huggingface.co/datasets/ameau01/synthesized-cloud-optimization-recommendations>) | Schema examples and separate agent evaluation; 18 examples are useful for scenario testing |
+| [Multi-Cloud Resource Dataset](<https://www.kaggle.com/datasets/freshersstaff/multi-cloud-resource-dataset>) | Initial classification experiments for scale-up, scale-down, and no-action |
+| [Example XGBoost project](<https://github.com/dhanushmb/Intelligent-Cloud-Cost-Optimization-Forecasting-System-/>) | Reference CSV structure and classifier implementation |
+| [AWS Compute Optimizer exports](<https://docs.aws.amazon.com/compute-optimizer/latest/ug/exporting-recommendations.html>) | Potential future teacher labels from authorized accounts |
+| [Microsoft Lorentz research](<https://www.microsoft.com/en-us/research/publication/lorentz-learned-sku-recommendation-using-profile-data/>) | Learned SKU allocation methodology |
 
-## 7. Risk and verification design
+Dataset labels and plan names are validated before use. Algorithm-generated labels are explicitly identified as synthetic or teacher-policy-derived, not as proven production-optimal decisions.
 
-**Tier A — non-negotiable hard gates:** missing/stale data, incompatible SKU, memory/storage/IOPS/network breach, unsupported disk shrink, production shutdown without policy, unresolved IaC drift, bad health/SLO results, missing owner approval. Hard failures veto AI/ML recommendations.
+### Synthetic Utho estate
 
-**Tier B — probabilistic scenarios:** time-block bootstrap future load preserving day/week rhythms, plus 2× launch traffic, month-end batch, high memory and network spikes. Compute empirical scenario fraction exceeding capacity/SLO; report it as **modeled breach frequency**, not actual downtime probability. Risk score is a documented heuristic unless calibrated with real incident labels.
+Generate 120 VMs × 30 days × 96 fifteen-minute observations per day, totalling **345,600 VM observations**.
 
-**Tier C — measured workload replay:** run one sample web/API app with Docker CPU/RAM restrictions; drive traffic with **k6**; record measured p95 latency, error %, CPU throttling and OOM / container restarts. Test baseline and at least two candidate limits. Docker replay is *not* proof of identical behavior on specific Utho processors/disks/networks.
+Include:
 
-**Optional Jev:** TypeSafe Jev gives typed decisions/probabilities; use it only for **contextual review routing** (`routine`, `senior_SRE`, `needs_information`) or explanation ranking. Jev scores cannot override hard gates and are not calibrated outage probabilities. Core works without an API key.
+- Three regions and three environments.
+- Resource owners, teams, criticality, creation dates, and plan identifiers.
+- Compute, memory, disk, IOPS, and network attributes.
+- Volumes, unattached storage, public IPs, and six-month billing snapshots.
+- Terraform-managed, unmanaged, and unknown-management resources.
+- Resource dependency relationships.
+- Steady-low, bursty, batch, weekday-only, memory-bound, and network-bound workloads.
+- Anomalies, cost spikes, orphaned resources, and insufficient-data cases.
 
-**Differentiator:** a downloadable **Safety Proof / Verified Savings evidence packet** showing every passed, failed and uncertain check plus test provenance.
+Use deterministic random seeds, compact CSV/Parquet fixtures, versioned prices, and explicit provenance labels.
 
----
+## 7\. ML Forecasting and Supervised Recommendation Models
 
-## 8. Cloud emulation, cloud APIs and IaC reality
+The ML engine predicts future workload demand. A separate constrained optimizer selects a valid provider plan.
 
-**Floci** ([source](https://github.com/floci-io/floci)) and **LocalStack** ([source](https://github.com/localstack/localstack), [docs](https://docs.localstack.cloud/)) are AWS-shaped cloud emulators. **Choose Floci as optional primary AWS control-plane integration/test, LocalStack as fallback**; don't run both by default. These test API operations / inventory / mock cloud lifecycle, not performance of Utho VMs. Validate specific APIs before promising exact coverage. LocalStack's current licensing/features should be checked before use. **'LoCo' / 'LocaStack' were not unambiguously identified; do not add unknown dependencies.**
+### Features and targets
 
-For real workload validation, use **Docker + k6** independently; optional **Prometheus** to collect measured metrics.
+Features include allocated vCPU and RAM, current utilization, rolling peaks, p95/p99, temporal lags, cyclical time features, missingness, criticality, dependencies, and forecast horizon.
 
-**Utho Terraform provider:** [uthoplatforms/terraform-provider-utho](https://github.com/uthoplatforms/terraform-provider-utho) includes [`utho_cloud`](https://github.com/uthoplatforms/terraform-provider-utho/blob/main/docs/resources/cloud.md), [`utho_cloud_resize`](https://github.com/uthoplatforms/terraform-provider-utho/blob/main/docs/resources/cloud_resize.md), [`utho_cloud_power`](https://github.com/uthoplatforms/terraform-provider-utho/blob/main/docs/resources/cloud_power.md), [`utho_cloud_snapshot`](https://github.com/uthoplatforms/terraform-provider-utho/blob/main/docs/resources/cloud_snapshot.md). **Changing `utho_cloud.planid` directly can force instance replacement**; the dedicated resize operation must be examined. Documented resizing requires shutdown first; `ramcpu` vs `full`; disk may not shrink/reverse, and only valid DC plans apply. `utho_cloud_resize` may itself need special lifecycle handling; test it before generating an automatic apply proposal.
+Targets include maximum CPU demand, maximum memory demand, and selected throughput metrics over the next hour or day.
 
-**Correct GitOps ownership:** Utho as a CSP has **no automatic access to a customer's Terraform repository**. GitOps only works if the **customer authorizes a GitHub App for selected repos** or deploys a customer-owned execution connector. Agent opens a branch and PR with approved change; customer's CI runs a Terraform plan; an authorized, customer-controlled runner applies it. Terraform config in Git is declared intent, Terraform state tracks managed resource instances; direct console/API changes to Terraform-managed infrastructure cause drift.
+### Model comparison
 
-**Three execution modes:**
-- **GitOps-managed:** customer-authorized repo → exact approved diff → PR → CI plan/policy → customer review → permitted apply → post-change verification. No agent direct mutation.
-- **Unmanaged/direct API:** if management mode is confirmed *unmanaged*, with scoped credentials and explicit action-bound approval, backend executor may call Utho API. Hackathon: **simulated/dry-run only**.
-- **Manual/export:** create runbook, scripts/snippets, prerequisites, verification steps and rollback for users without repo/API connection.
+- Historical rolling-p99 and seasonal-naive baselines.
+- Ridge regression.
+- Random Forest.
+- LightGBM quantile regression.
+- Optional XGBoost.
+- Optional small MLP, LSTM, or Transformer experiments.
 
-**Security:** MCP is tool-call plumbing, **not** authorization. Backend restricts tool list, credentials, resource/plan/tenant scope, signed approval bound to action+resource+config+evidence version, expiries, audit log, idempotency, drift/revision recheck, and last-minute plan review. No blanket shell execution or model-owned secrets; no direct production destructive apply in demo. Customer-hosted outbound executor is a future enterprise option to avoid central credential custody.
+Training is CPU-based, with capped parallelism and controlled dataset sizes.
 
----
+### Evaluation
 
-## 9. Existing market / OSS benchmark
+Use chronological training, validation, and test windows, with a purge gap for overlapping targets and a separate VM holdout test.
 
-| Tool | Already solves | How CloudPilot differs in scope |
-|---|---|---|
-| [Hystax OptScale](https://github.com/hystax/optscale) | Multi-cloud costs, VM rightsizing, idle/shutdown schedules, budgets, pools, allocations | Evidence-backed counterfactual replay + transparent workflow PR for a smaller Utho estate. |
-| [Robusta KRR](https://github.com/robusta-dev/krr) | Kubernetes percentile rightsizing | Utho-like VM plans + GitOps decision/verification. |
-| [CAST AI](https://cast.ai/) | Automated cloud/Kubernetes infrastructure optimization | Hackathon-grade transparent risk evidence in VM context. |
-| [Kubecost](https://www.kubecost.com/) / [OpenCost](https://www.opencost.io/) | Kubernetes cost allocation | VM, storage, IP and provider plan optimization. |
-| [Infracost](https://www.infracost.io/) | Terraform cost diffs | Learn from usage before generating a Terraform change. |
+Evaluate:
 
-**OptScale implementation lessons (inspected):**
-- [`rightsizing_instances.py`](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/recommendations/rightsizing_instances.py): VM rightsizing with default q99 metric and 80% target, enumerating compatible flavors and calculating savings.
-- [`rightsizing_base.py`](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/rightsizing_base.py): approximate CPU need = `ceil(current_vcpu * current_cpu_p99_percent / 80)`, plan catalogue match and projected CPU statistics.
-- [`instances_for_shutdown.py`](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/recommendations/instances_for_shutdown.py): 14-day default, 5% CPU and low network threshold, inactive weekday/time windows, scheduling economics.
-- **Do not** deploy full OptScale as our MVP: repository documents at least **16 GB RAM** for its evaluation setup, above our laptop constraints. Study code and build a focused implementation.
+- Pinball loss and quantile coverage.
+- Peak underprediction rate.
+- Capacity and SLO constraint violations.
+- Cost of selected configurations.
+- Regret against the simulated future-optimal plan.
+- Inference runtime and memory consumption.
 
----
+A model that performs worse than the baseline is still evaluated and documented; the selection policy uses the stronger validated method.
 
-## 10. Fifteen additional product ideas (scope-ranked)
+### Teacher labels
 
-| # | Idea | Priority | Description / demo |
-|---|---|---|---|
-| 1 | SLO-aware optimization | P0 | Reject candidates that violate latency/errors despite savings. |
-| 2 | Counterfactual replay | P0 | Replay a daily burst on 2/4/8 vCPU scenarios. |
-| 3 | Savings confidence intervals | P0 | Model a plausible savings range with explicit cost assumptions. |
-| 4 | Portfolio Pareto frontier | P1 | Compare conservative/balanced/aggressive cost-risk tradeoffs. |
-| 5 | Shadow mode | P0/P1 | Historic what-would-have-happened replay with no mutation. |
-| 6 | Rollback triggers | P1 | Failure thresholds and rollback-ready procedure. |
-| 7 | Change-conflict detection | P0 | Block stale approvals / incompatible Terraform revisions. |
-| 8 | Dependency blast-radius graph | P1 | Protect apparently idle critical dependencies. |
-| 9 | Per-environment risk budgets | P1 | Stricter prod, tailored dev policy. |
-| 10 | Capacity stress scenarios | P0 | Future 2× traffic, month-end spikes, growth. |
-| 11 | Feedback learning | P1 | Compare predicted and measured savings after change. |
-| 12 | Inferred owners | P2 | Guess owner of untagged disks with human verification. |
-| 13 | Data-quality abstention | P0 | Refuse recommendations without adequate evidence. |
-| 14 | Unit economics | P2 | Cost per customer/request, not just VM cost. |
-| 15 | Topology/network optimizer | P2 | Egress/region/IP/load-balancer tradeoffs. |
+Generate reference labels by evaluating valid plans against future workload replay and constraints. Supported actions include `upsize`, `downsize`, `schedule`, `no_action`, `review_orphan`, and `defer_insufficient_data`.
 
-**Core novelty to prioritize:** #1, #2, #7, #10, #13 plus verified evidence packet and GitOps PR. Treat the rest as visible backlog, not a 42-hour promise.
+Classical supervised learning on these labels is distinct from LLM supervised fine-tuning. The latter uses curated decision/explanation examples and is an additional model-training path.
 
----
+## 8\. Constrained Optimization and Cost Economics
 
-## 11. API and state contracts
+For each resource, enumerate valid plans and minimize projected cost while satisfying capacity, compatibility, and workload constraints.
 
-Proposed REST:
+The objective incorporates monthly infrastructure cost, modeled risk, and migration cost. Portfolio optimization can additionally account for budgets, dependencies, and change conflicts.
 
-```text
+### Supported actions
+
+- Resize to a valid existing plan.
+- Schedule non-production stop/start.
+- Investigate idle resources.
+- Review orphaned volumes and IP addresses.
+- Analyze storage and network optimization opportunities.
+- Recommend no action or defer when evidence is insufficient.
+
+### Validation dimensions
+
+- CPU high quantiles and short-duration peaks.
+- Physical memory requirements.
+- Disk capacity and growth.
+- Disk IOPS and network bandwidth.
+- Region-specific plan availability.
+- Architecture, licensing, and family compatibility.
+- Resource dependencies and criticality.
+- Telemetry freshness and coverage.
+- Billing type and minimum charges.
+- Scheduled jobs, health checks, and rollback procedures.
+
+### Cost calculations
+
+Maintain versioned provider prices and separate compute, storage, IP, backup, and egress charges.
+
+Calculate projected monthly savings with one-time costs shown separately. Apply actual billing rules for stopped instances and minimum commitments. Reconcile overlapping resize and scheduling actions to prevent double-counting.
+
+The UI distinguishes accepted portfolio savings from potential savings awaiting approval.
+
+## 9\. Safety Validation and Verified Savings
+
+CloudPilot combines deterministic policy checks, probabilistic scenario analysis, and measured application benchmarking.
+
+### Hard policy checks
+
+Validate data freshness, plan compatibility, memory/storage/IOPS/network capacity, disk shrink restrictions, production scheduling policies, Terraform drift, application health, and ownership approval.
+
+Hard failures block execution proposals.
+
+### Scenario analysis
+
+Replay historical workloads using time-block resampling to preserve daily and weekly patterns. Evaluate two-times launch traffic, month-end batch loads, memory spikes, and network stress.
+
+Report the observed fraction of simulated scenarios that breach constraints as **modeled breach frequency**, not actual outage probability.
+
+### Application benchmark
+
+Run a sample API using Docker resource limits and generate traffic with k6. Measure p95 latency, HTTP error percentage, CPU throttling, out-of-memory events, and restarts for baseline and candidate configurations.
+
+Optionally use Prometheus to collect metrics.
+
+Docker results are measurements of the tested container environment, not proof of identical performance on Utho hardware.
+
+### Evidence packet
+
+Each recommendation exports:
+
+- Input metrics and provenance.
+- Forecasts and model version.
+- Current and candidate plan details.
+- Pricing and cost calculations.
+- Passed, failed, and uncertain safety checks.
+- Scenario outcomes.
+- Benchmark provenance.
+- Required approvals.
+- Rollback procedure and verification status.
+
+## 10\. Jev and TypeSafe Integration
+
+Jev and TypeSafe are included as an optional typed decision and contextual review layer.
+
+Potential uses include:
+
+- Routing routine recommendations for standard review.
+- Escalating production or high-impact changes to senior SRE review.
+- Requesting more information when telemetry or ownership is incomplete.
+- Ranking explanations and organizing review evidence.
+
+Jev-derived probabilities are not treated as calibrated outage probabilities. Its decisions cannot override deterministic safety gates or authorization rules.
+
+The core optimizer, safety validator, and local demo remain functional when the integration is not configured.
+
+## 11\. Floci, LocalStack, Docker, and Prometheus
+
+### Floci
+
+[Floci](<https://github.com/floci-io/floci>) provides an AWS-shaped control-plane emulation option for testing selected API interactions, resource discovery, and mock lifecycle workflows.
+
+### LocalStack
+
+[LocalStack](<https://github.com/localstack/localstack>) provides an alternative AWS-compatible local testing environment. Its supported services, licensing, and features are checked against the required tests.
+
+### Integration strategy
+
+Use Floci as the primary AWS-compatible emulator candidate and LocalStack as an alternative. Run whichever provides the required reproducible API coverage without making both mandatory.
+
+Both are used for AWS-compatible API behavior, not as native Utho emulators or performance simulators.
+
+### Docker and k6
+
+Docker and k6 independently validate application behavior under controlled CPU and memory limits. Optional Prometheus integration collects measured metrics.
+
+This separates control-plane integration testing from workload-performance experiments.
+
+## 12\. Utho Provider and Terraform Integration
+
+Reference provider:
+
+[Utho Terraform provider](<https://github.com/uthoplatforms/terraform-provider-utho>)
+
+Relevant resources:
+
+- `utho_cloud`
+- `utho_cloud_resize`
+- `utho_cloud_power`
+- `utho_cloud_snapshot`
+- Provider plan data sources, including `cloud_plans`.
+
+The integration inspects plan replacement behavior, dedicated resize operations, shutdown requirements, `ramcpu` versus `full` resize modes, data-center plan availability, and storage limitations before proposing a change.
+
+Provider behavior is tested in a reproducible demo environment before any executable workflow is enabled.
+
+### Three execution modes
+
+**GitOps-managed resources**
+
+1. Customer authorizes a GitHub App or customer-owned connector.
+2. CloudPilot generates an exact infrastructure diff.
+3. A branch and pull request are created.
+4. CI runs Terraform validation, policy checks, and a plan.
+5. The authorized customer workflow reviews and applies the change.
+6. CloudPilot verifies the outcome and records the evidence.
+
+**Unmanaged resources**
+
+A scoped provider adapter prepares approved API operations. Resource ownership, action-bound authorization, permissions, idempotency, and last-minute configuration checks are required.
+
+**Manual execution**
+
+CloudPilot generates runbooks, commands, Terraform snippets, prerequisites, verification steps, and rollback instructions.
+
+### Security controls
+
+- No unrestricted shell execution by the agent.
+- No model-owned secrets.
+- No blanket infrastructure permissions.
+- Approval bound to the exact resource, action, configuration, and evidence version.
+- Expiring authorization, audit logging, idempotency, and drift/revision checks.
+- Customer-controlled apply permissions.
+- A future customer-hosted outbound executor for enterprise deployments.
+
+## 13\. Existing Market and Open-Source Benchmark
+
+| Project | Existing capabilities | CloudPilot differentiation |
+| --- | --- | --- |
+| [Hystax OptScale](<https://github.com/hystax/optscale>) | Multi-cloud cost analysis, rightsizing, schedules, budgets | Evidence-backed replay and controlled infrastructure proposals |
+| [Robusta KRR](<https://github.com/robusta-dev/krr>) | Kubernetes percentile rightsizing | VM plans, cloud costs, and approval workflows |
+| [CAST AI](<https://cast.ai/>) | Cloud and Kubernetes optimization | Transparent workload validation and evidence packets |
+| [Kubecost](<https://www.kubecost.com/>) / [OpenCost](<https://www.opencost.io/>) | Kubernetes cost allocation | VM, storage, IP, and provider-plan optimization |
+| [Infracost](<https://www.infracost.io/>) | Terraform cost diffs | Usage-driven optimization before infrastructure changes |
+
+### OptScale implementation references
+
+- Instance rightsizing: percentile-driven rightsizing and candidate flavour selection.
+- Rightsizing base logic: approximate CPU requirements, plan matching, and cost comparison.
+- Shutdown recommendations: inactivity windows and shutdown economics.
+
+These references inform a focused CloudPilot implementation. The full OptScale deployment is not required.
+
+## 14\. Fifteen Additional Product Ideas
+
+All fifteen ideas are retained in the product design.
+
+| # | Feature | Implementation |
+| --- | --- | --- |
+| 1 | SLO-aware optimization | Reject configurations violating latency or error constraints |
+| 2 | Counterfactual replay | Compare daily bursts across alternative vCPU configurations |
+| 3 | Savings confidence intervals | Calculate plausible savings ranges under explicit assumptions |
+| 4 | Portfolio Pareto frontier | Compare conservative, balanced, and aggressive cost-risk outcomes |
+| 5 | Shadow mode | Replay historical decisions without infrastructure mutations |
+| 6 | Rollback triggers | Define failure thresholds and rollback-ready procedures |
+| 7 | Change-conflict detection | Detect stale approvals and incompatible Terraform revisions |
+| 8 | Dependency blast-radius graph | Identify downstream services affected by proposed changes |
+| 9 | Per-environment risk budgets | Apply production, staging, and development policies |
+| 10 | Capacity stress scenarios | Simulate future growth, traffic spikes, and batch loads |
+| 11 | Feedback learning | Compare predicted savings against observed outcomes |
+| 12 | Inferred owners | Suggest owners of untagged resources for human verification |
+| 13 | Data-quality abstention | Defer recommendations when evidence is insufficient |
+| 14 | Unit economics | Calculate cost per customer, request, or transaction |
+| 15 | Topology/network optimization | Evaluate egress, regional placement, IP, and network trade-offs |
+
+These capabilities use shared resource models, dependency graphs, pricing, simulation, and evidence services.
+
+## 15\. REST API and Data Contracts
+
+### Core API
+
+text
+
+```
 GET    /api/health
 GET    /api/summary
 GET    /api/resources?region=&environment=&team=&type=
@@ -251,107 +553,172 @@ GET    /api/resources/{resource_id}/metrics?start=&end=
 GET    /api/plans?region=
 GET    /api/recommendations?risk=&status=
 GET    /api/recommendations/{id}
-PATCH  /api/recommendations/{id}    {decision: accept|reject, actor, evidence_version}
-POST   /api/simulate                {action_ids, schedule, demand_multiplier}
-POST   /api/verify                  {recommendation_id, mode: replay|benchmark}
+PATCH  /api/recommendations/{id}
+POST   /api/simulate
+POST   /api/verify
 GET    /api/alerts
 GET    /api/ml/benchmarks
-POST   /api/changes/propose         {recommendation_id, execution_mode}
+POST   /api/changes/propose
 GET    /api/changes/{id}
 ```
 
-Every recommendation stores: `id`, `resource_id`, `observed_window`, `features_version`, `model_name/version`, `catalogue_version`, `current_plan`, `proposed_plan`, `action_type`, `cost_before`, `cost_after`, `estimated_savings`, `risk_class`, `hard_gate_results`, `scenario_breach_rate`, `verification_result`, `provenance`, `assumptions`, `status`, `approved_by/at`, `terraform_revision`, `PR URL if created`.
+### Agent and MCP services
 
-Lifecycle: `DETECTED → ANALYZED → VERIFIED → PROPOSED → APPROVED → PR_OPEN / DRY_RUN → APPLIED → MONITORED`, with `REJECTED`, `BLOCKED`, `INSUFFICIENT_DATA`, `FAILED`, `ROLLED_BACK`. MVP must implement all *relevant demo-state transitions*; APPLIED/MONITORED may be simulated, never falsely represented as live.
+The agent uses the same typed backend services for inventory, metrics, plan discovery, optimization, risk assessment, simulation, evidence retrieval, and controlled change proposals.
 
-Read-only MCP tools: `list_resources`, `get_metrics`, `get_candidate_plans`, `run_optimization`, `run_risk_assessment`, `simulate_change`, `get_alerts`; controlled action tool: `create_change_proposal` and `open_pr` **only after approval**. Keep model explanations optional and evidence-bound.
+This ensures the UI and MCP agent share a consistent source of truth.
 
----
+### Recommendation record
 
-## 12. Mandatory implementation tests and measurable acceptance criteria
+Each recommendation stores:
 
-**Functional:**
-- Reproducible `make`/Python generator produces 120 VMs and exactly 30 days of 15-min samples, plus anomalies, orphans, 6-month bills and realistic resource metadata.
-- Dashboard filters, drilldowns, graphs, recommendations, simulator and alerts work locally with no cloud token.
-- Every recommendation specifies an exact valid catalogue plan/action and safety/cost rationale; `accept/reject` changes totals consistently.
-- At least one high-mean-vs-peak counterexample blocked; memory-bound VM blocked; missing-data abstention; non-prod shutdown preview; orphan disk requires owner verification.
-- Combined schedule+resize does not double-count savings; fixed-rate/minimum-term billing cannot be canceled magically by stop.
-- Constrained optimizer honors same-region plan availability, storage limitations and high-quantile demand; no unsupported disk shrink.
-- ML benchmark charts compare baseline vs at least **Ridge and LightGBM** with test-set upper-tail coverage, unsafe-candidate rate and simulated realized saving. If ML is worse, system must prefer baseline.
-- One Docker+k6 test actually measures application p95 latency and HTTP error rate at original vs reduced container limits; dashboard identifies results as local-container results.
-- One read-only Floci test or reproducible API mock, with provider coverage caveat. Emulator optional and not required to launch app.
-- An approved proposal produces **validated Terraform diff/dry-run** in demo repo; optionally opens a **real PR only if demo repo credentials are configured**. Never require customer repo creds.
-- No mutating provider operation without exact approval and authorization; secrets never recorded in logs.
+- Recommendation and resource IDs.
+- Observation window and feature version.
+- Model and catalogue versions.
+- Current and proposed plans.
+- Action type and cost before/after.
+- Estimated savings and assumptions.
+- Risk class and hard-gate results.
+- Scenario breach frequency.
+- Verification results and provenance.
+- Status, approver, and approval timestamp.
+- Terraform revision and pull request URL, when available.
 
-**Quality:** backend pytest suite, frontend build, typed response schemas, README with Windows PowerShell and optional Docker instructions, local seed data, sample config `.env.example`, explanation of unsupported APIs, assumptions sheet, trace provenance and limitations, 5–7-minute demo script.
+### Lifecycle
 
-**Prioritized cut line:** P0 = fully working metrics, safe rules, cost, alerts, simulator, ML baseline comparison, approval/evidence; P1 = Docker replay + GitOps PR + Floci proof + explanation AI; P2 = Jev, forecasting 90 days, RL/deep models, carbon, multi-tenant, full real Utho account integration.
+`DETECTED → ANALYZED → VERIFIED → PROPOSED → APPROVED → PR_OPEN / DRY_RUN → APPLIED → MONITORED`
 
----
+Additional states include `REJECTED`, `BLOCKED`, `INSUFFICIENT_DATA`, `FAILED`, and `ROLLED_BACK`.
 
-## 13. Hackathon timeline and team assignments
+Simulated states and live infrastructure states remain distinguishable.
 
-| Time | Goal | Owner (4-person split) |
-|---|---|---|
-| 0–4h | Project skeleton, Pydantic/API contracts, sample dataset schema, frontend routes, agreed demo cases | All |
-| 4–12h | Reproducible data, pricing & deterministic rightsizing, inventory and metrics UI | Data/ML, Backend, Frontend |
-| **Hour 12 gate** | Rules produce correct price, safe/unsafe and no-action recommendations | Backend/Data |
-| 12–20h | ML training comparison, candidate plan search, risk gates and savings model | ML/Backend |
-| **Hour 20 gate** | Show no ML degradation or default to transparent baseline | ML |
-| 20–28h | Scenario replay + one Docker/k6 workload; approve → Terraform proposal; optional Floci | Infra/Backend |
-| **Hour 28 gate** | End-to-end observation → decision → dry-run change path demonstrated | All |
-| 28–34h | Wire UI/API, harden approval states, add actionable alert/anomaly and exports | All |
-| **Hour 34 gate** | Feature freeze, full acceptance test pass | All |
-| 34–42h | Documentation, reproducible install, 5–7-minute demo, fallback recording, polish | All |
+## 16\. Testing and Acceptance Criteria
 
-Team roles: **(1) Backend + optimization; (2) Frontend + UX; (3) Data + ML + experiment; (4) Infra + integrations + quality/pitch**. Integrate the summary/resource API by hour 8–10; do not wait until the end.
+### Functional tests
 
-**Suggested effort split:** ~45% optimization/testing, 25% UI, 20% GitOps/integration, 10% docs/demo. Implementation can overlap by member.
+1. Generate 120 VMs and exactly 30 days of fifteen-minute telemetry.
+2. Generate anomalies, orphaned resources, billing snapshots, and realistic resource metadata.
+3. Run the application locally without cloud credentials.
+4. Verify filters, graphs, recommendation actions, simulation, and alerts.
+5. Validate candidate plans against regional availability and compatibility constraints.
+6. Block unsafe peak-demand and memory-bound downsizing.
+7. Defer recommendations with insufficient data.
+8. Require ownership verification for orphan cleanup.
+9. Verify non-production schedule previews and billing assumptions.
+10. Prevent savings double-counting across overlapping actions.
+11. Compare historical baselines, Ridge, and LightGBM on chronological test data.
+12. Record forecast coverage, unsafe-candidate rate, runtime, and simulated savings.
+13. Measure actual Docker/k6 p95 latency and HTTP errors.
+14. Test selected Floci, LocalStack, or reproducible API-mock operations.
+15. Generate a validated Terraform diff and dry-run result.
+16. Test MCP tool permissions, approval binding, audit records, and failure handling.
+17. Verify that unauthorized infrastructure mutations cannot be executed.
+18. Run backend pytest tests and the frontend production build.
 
----
+### Quality and handoff
 
-## 14. Resource library (everything discussed; main URLs)
+- Windows PowerShell setup instructions.
+- Optional Docker Compose setup.
+- Sample configuration and `.env.example`.
+- Deterministic seed data and repeatable training scripts.
+- Dataset provenance and attribution.
+- Pricing and assumptions sheet.
+- Architecture and safety documentation.
+- Evidence packet and demo scenarios.
+- Five- to seven-minute presentation.
+- Fallback demo recording.
 
-### Official brief, Utho and IaC
-- **Hackathon source:** `TF'26 PROBLEM STATEMENTS.pdf`, pages 44–47, Utho section (uploaded in chat; not publicly linked).
-- [Utho public pricing](https://utho.com/pricing) — current values must be read/verified, not assumed.
-- [Utho Terraform provider](https://github.com/uthoplatforms/terraform-provider-utho) — `docs/resources/cloud.md`, `cloud_resize.md`, `cloud_power.md`, `cloud_snapshot.md`, `docs/data-sources/cloud_plans.md`.
-- [Terraform docs](https://developer.hashicorp.com/terraform/docs); [OpenTofu](https://opentofu.org/docs/); [GitHub Apps](https://docs.github.com/en/apps); [GitHub Actions](https://docs.github.com/en/actions); [Model Context Protocol](https://modelcontextprotocol.io/).
+## 17\. Implementation Schedule
 
-### Competitors and implementation lessons
-- [OptScale](https://github.com/hystax/optscale), [OptScale rightsizing base](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/rightsizing_base.py), [OptScale VM rightsizing](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/recommendations/rightsizing_instances.py), [OptScale shutdown scheduler](https://github.com/hystax/optscale/blob/integration/bumiworker/bumiworker/modules/recommendations/instances_for_shutdown.py).
-- [Robusta KRR](https://github.com/robusta-dev/krr), [CAST AI](https://cast.ai/), [Kubecost](https://www.kubecost.com/), [OpenCost](https://www.opencost.io/), [Infracost](https://www.infracost.io/).
+| Time | Work |
+| --- | --- |
+| Hours 0–4 | Project skeleton, data schemas, API contracts, frontend routes |
+| Hours 4–12 | Synthetic estate, catalogue, deterministic optimizer, dashboard |
+| Hours 12–20 | Forecasting experiments, candidate search, risk gates, savings |
+| Hours 20–28 | Replay, Docker/k6, MCP integration, approval and Terraform proposal |
+| Hours 28–34 | UI/API integration, alerts, evidence, audit, emulator tests |
+| Hours 34–42 | Acceptance testing, integration checks, documentation, demo |
 
-### Datasets and ML research
-- [Bitbrains fastStorage + Rnd documentation](https://atlarge-research.com/gwa-t-12/); [fastStorage ZIP](https://atlarge-research.com/gwa-traces/gwa_t_12_fastStorage.zip); [Rnd ZIP](https://atlarge-research.com/gwa-traces/gwa_t_12_rnd.zip); [Materna](https://atlarge-research.com/gwa-t-13/).
-- [Preprocessed Bitbrains CPU/RAM CSVs](https://github.com/alhamedy/Dataset-used-to-build-the-time-series-prediction-models).
-- [Azure V1](https://github.com/Azure/AzurePublicDataset/blob/master/AzurePublicDatasetV1.md); [Azure VM Noise](https://github.com/Azure/AzurePublicDataset/blob/master/AzureVMNoiseDataset2024.md); [Alibaba 2017](https://github.com/alibaba/clusterdata/tree/master/cluster-trace-v2017); [Google CPU subset](https://zenodo.org/records/6979672).
-- [HF synthetic optimization scenarios](https://huggingface.co/datasets/ameau01/synthesized-cloud-optimization-recommendations); [Kaggle Multi-cloud Resource dataset](https://www.kaggle.com/datasets/freshersstaff/multi-cloud-resource-dataset); [sample labeled CSV + XGBoost classifier](https://github.com/dhanushmb/Intelligent-Cloud-Cost-Optimization-Forecasting-System-/).
-- [AWS Compute Optimizer recommendation export](https://docs.aws.amazon.com/compute-optimizer/latest/ug/exporting-recommendations.html); [Microsoft Lorentz paper](https://www.microsoft.com/en-us/research/publication/lorentz-learned-sku-recommendation-using-profile-data/).
+### Team responsibilities
 
-### Emulator, verification and AI
-- [Floci](https://github.com/floci-io/floci); [LocalStack](https://github.com/localstack/localstack) and [licensing docs](https://docs.localstack.cloud/aws/licensing/); [Docker](https://docs.docker.com/); [k6](https://grafana.com/docs/k6/latest/); [Prometheus](https://prometheus.io/docs/).
-- [Jev reference/ecosystem](https://jevaihub.com/) and [TypeSafe AI](https://typesafe.ai/); [FastAPI](https://fastapi.tiangolo.com/); [LightGBM](https://lightgbm.readthedocs.io/); [DuckDB](https://duckdb.org/docs/).
+- **Contributor 1:** Backend, optimization, cost engine, APIs.
+- **Contributor 2:** Frontend, dashboards, simulator, user experience.
+- **Contributor 3:** Dataset pipeline, ML, model evaluation, scenario generation.
+- **Contributor 4:** MCP agent, infrastructure integrations, Terraform, testing, and demonstration.
 
----
+Shared interfaces are agreed early so the components can be developed in parallel.
 
-## 15. Decision log and honest research-status notes
+## 18\. Resource Library
 
-- **Chosen:** mixed *real workload ML + synthetic Utho demonstration + algorithm-derived supervised labels*, not gigantic Azure downloads.
-- **Chosen:** quantile demand prediction + valid-plan optimization + conservative hard gates; compare with rule/p99 baselines.
-- **Chosen:** dynamic verified-savings audit trail; customer-owned GitOps **when authorized**; manual/direct adapter fallback.
-- **Chosen:** Floci **optional** AWS emulation, Docker+k6 actual local resource-limit experiment. Floci is not a Utho simulator or hardware performance verifier.
-- **Deferred:** Jev and LLM SFT. Jev is optional review triage, not outage risk truth. 18 HF scenarios cannot credibly train a general-purpose optimizer alone.
-- **Deferred:** customer-hosted executor, true Utho API live changes, 90-day forecast, multi-tenant RBAC, advanced carbon/energy calculation, topology optimization, large-neural-model experiment.
-- **Research claims to recheck before claiming victory:** current Utho plan pricing and billing/resize behavior; Floci and/or LocalStack API fidelity; GitHub App authorization; whether Terraform provider resize is reproducible in demo; external dataset licenses/attribution and actual delivered archives; out-of-sample ML gains; empirical load-test findings.
-- **Demo results must be from code, not made-up accuracy or savings.** Clearly label synthetic inputs, simulated futures and measured Docker/k6 performance.
+### Official brief, pricing, and infrastructure
 
----
+- Utho problem statement: `TF'26 PROBLEM STATEMENTS.pdf`, pages 44–47.
+- [Utho pricing](<https://utho.com/pricing>)
+- [Utho Terraform provider](<https://github.com/uthoplatforms/terraform-provider-utho>)
+- [Terraform documentation](<https://developer.hashicorp.com/terraform/docs>)
+- [OpenTofu documentation](<https://opentofu.org/docs/>)
+- [GitHub Apps](<https://docs.github.com/en/apps>)
+- [GitHub Actions](<https://docs.github.com/en/actions>)
+- [Model Context Protocol](<https://modelcontextprotocol.io/>)
 
-## 16. Final demo and handoff checklist
+### Datasets and ML
 
-**Demo beats (6–7 minutes):** problem 0:00–0:40 → dashboard/inventory 0:40–1:30 → safe resize 1:30–2:30 → dangerous burst rejection 2:30–3:20 → ML benchmark / risk evidence 3:20–4:10 → what-if costs and alert 4:10–5:00 → approve + PR/dry-run 5:00–6:00 → measured replay, limitations, next steps 6:00–6:30.
+- [Bitbrains GWA-T-12](<https://atlarge-research.com/gwa-t-12/>)
+- [Bitbrains fastStorage](<https://atlarge-research.com/gwa-traces/gwa_t_12_fastStorage.zip>)
+- [Bitbrains Rnd](<https://atlarge-research.com/gwa-traces/gwa_t_12_rnd.zip>)
+- [Materna](<https://atlarge-research.com/gwa-t-13/>)
+- [Preprocessed Bitbrains](<https://github.com/alhamedy/Dataset-used-to-build-the-time-series-prediction-models>)
+- [Azure Public Dataset](<https://github.com/Azure/AzurePublicDataset/blob/master/AzurePublicDatasetV1.md>)
+- [Azure VM Noise](<https://github.com/Azure/AzurePublicDataset/blob/master/AzureVMNoiseDataset2024.md>)
+- Alibaba Cluster Trace
+- [Google CPU subset](<https://zenodo.org/records/6979672>)
+- [Synthetic optimization examples](<https://huggingface.co/datasets/ameau01/synthesized-cloud-optimization-recommendations>)
+- [Multi-cloud resource dataset](<https://www.kaggle.com/datasets/freshersstaff/multi-cloud-resource-dataset>)
+- [Example XGBoost project](<https://github.com/dhanushmb/Intelligent-Cloud-Cost-Optimization-Forecasting-System-/>)
+- [AWS Compute Optimizer](<https://docs.aws.amazon.com/compute-optimizer/latest/ug/exporting-recommendations.html>)
+- [Microsoft Lorentz research](<https://www.microsoft.com/en-us/research/publication/lorentz-learned-sku-recommendation-using-profile-data/>)
 
-**Deliver:** bootable local app; `README.md`; seed generator; checked-in tiny demo fixtures; model training script & results; transparent pricing/assumptions sheet; `docs/architecture.md`; `docs/data_provenance.md`; `docs/safety_and_limits.md`; `docs/demo_script.md`; acceptance tests; optional Docker Compose; screenshots/video fallback. Cite Bitbrains/other dataset rights appropriately.
+### Optimization and cost benchmarks
 
-**One-sentence pitch:** *“CloudPilot doesn't just show cloud waste: it finds a lower-cost valid configuration, tests how that change affects workload and SLO risk, and safely proposes the change through the customer's preferred infrastructure workflow.”*
+- [OptScale](<https://github.com/hystax/optscale>)
+- [Robusta KRR](<https://github.com/robusta-dev/krr>)
+- [CAST AI](<https://cast.ai/>)
+- [Kubecost](<https://www.kubecost.com/>)
+- [OpenCost](<https://www.opencost.io/>)
+- [Infracost](<https://www.infracost.io/>)
+
+### Emulation, testing, and AI
+
+- [Floci](<https://github.com/floci-io/floci>)
+- [LocalStack](<https://github.com/localstack/localstack>)
+- [LocalStack licensing](<https://docs.localstack.cloud/aws/licensing/>)
+- [Docker](<https://docs.docker.com/>)
+- [k6](<https://grafana.com/docs/k6/latest/>)
+- [Prometheus](<https://prometheus.io/docs/>)
+- [Jev](<https://jevaihub.com/>)
+- [TypeSafe AI](<https://typesafe.ai/>)
+- [FastAPI](<https://fastapi.tiangolo.com/>)
+- [LightGBM](<https://lightgbm.readthedocs.io/>)
+- [DuckDB](<https://duckdb.org/docs/>)
+
+## 19\. Research and Integration Validation
+
+Implementation includes verification of current provider prices, resize semantics, supported plan IDs, storage limitations, GitHub authorization, emulator coverage, dataset licences, and ML performance.
+
+Where a provider, external service, or dataset requires credentials, configuration, or additional setup, the corresponding adapter and test workflow are included in the architecture.
+
+Measured outcomes are generated by experiments. Simulated outcomes are labelled as simulated. External integrations are tested against their documented and observed capabilities.
+
+## 20\. Final Product Definition
+
+CloudPilot integrates FinOps analytics, forecasting, constrained optimization, MCP-based AI assistance, cloud emulation, workload verification, Terraform/GitOps automation, and evidence-backed approval workflows.
+
+Its defining feature is **Verified Savings**: every optimization recommendation connects the proposed action to its cost impact, workload evidence, safety analysis, approval requirements, execution path, and verification results.
+
+The deliverable is a modular, extensible platform whose local prototype demonstrates the complete decision workflow and whose integration interfaces support expansion to configured cloud environments.
+
+**One-line pitch:** CloudPilot doesn't just identify cloud waste. It predicts demand, selects a valid lower-cost configuration, validates workload risk, explains the decision through an MCP-enabled agent, and prepares the approved change for controlled execution.
+
+This version restores the MCP agent and the supporting research and infrastructure ideas, while keeping the full product scope in one specification.
+
+I can next create a feature-by-feature implementation checklist mapped to the exact files, MCP tools, APIs, and tests so the team can build directly from this document.
