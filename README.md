@@ -1,5 +1,7 @@
 # CloudPilot
 
+**Website:** [uthoprime.duckdns.org](https://uthoprime.duckdns.org)
+
 Built for a hackathon, CloudPilot helps teams spot cloud waste, review cost-saving recommendations, and explore what-if scenarios using synthetic resource and usage data. Its execution lab supports approved LocalStack changes and Terraform pull requests.
 
 **Tech stack:** React 19, TypeScript, Vite, Tailwind CSS, Python 3.12+, FastAPI, SQLite, Docker, LocalStack, and Terraform. Optional LLM and GitHub App integrations power explanations and pull requests.
