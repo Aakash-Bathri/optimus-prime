@@ -25,7 +25,7 @@ The engine must work with deterministic statistical estimates before any ML trai
 | P1 | Selected-model artifact | Selection follows measured validation performance |
 | P2 | Public-trace evaluation | Only after core integration; preserve source semantics and attribution |
 
-Keep the 40–42-hour handoff schedule from the assignment as a planning envelope. If the competition build uses the shorter one-day scope in `PRODUCT_DEFINITION.md`, retain P0 and defer P1/P2. Use Person 1's delivered manifest for estate size; do not duplicate conflicting 100/120-VM assumptions in code.
+The confirmed competition scope is one day. Follow [the engine implementation milestones](ENGINE_IMPLEMENTATION_ROADMAP.md), retaining P0 and deferring learned-model experiments until the core gates pass. The older 40–42-hour assignment is not the available delivery window. Use Person 1's delivered manifest for estate size; the aligned team release target is 120 VMs, not a constant to duplicate inside analytics code.
 
 ## 3. Module layout
 
@@ -179,14 +179,14 @@ For optional resampling, draw contiguous daily blocks with a fixed seed, retaini
 
 ## 12. Handoffs and implementation order
 
-| Time | Work | Handoff |
+| Milestone | Work | Handoff |
 | --- | --- | --- |
-| Hours 0–4 | Contracts, units, quality semantics, fixture responses | Persons 1, 3, 4, 5 |
-| Hours 4–8 | Feature extraction and rolling baseline | Person 3 integrates callable service |
-| Hours 8–12 | Seasonal baseline, quality outcomes, historical replay | Working baseline recommendation journey |
-| Hours 12–20 | Five-hour experiment budget, result report, selected artifact | Persons 3 and 4 |
-| Hours 20–28 | Stress scenarios, frozen demo evidence, integration fixes | Persons 3 and 5 |
-| Hours 28 onward | Reproduction, acceptance, documentation | No new model families |
+| M0 | Contracts, units, quality semantics, fixture responses | Persons 1, 3, 4, 5 |
+| M1 | Quality, features, rolling baseline and historical replay | Person 3 evaluates candidates before final selection |
+| M2 | Stable evidence/version binding and integration fixes | Persisted recommendation and cost-plan journey |
+| M3–M5 | Seasonal baseline when history supports it, deterministic scenarios and simulation evidence | Persons 3 and 5; no learned-model dependency |
+| M6 | Reproduction, acceptance, documentation | Frozen methods and recorded results |
+| After core gates | Optional bounded model experiment, result report and selected artifact | Persons 3 and 4, only if time remains |
 
 If data is late, develop against agreed small fixtures. If model work overruns, freeze the baseline. If a dependency cannot be installed, record the skipped experiment; do not invent measurements.
 

@@ -33,6 +33,8 @@ No domain tables or persistent recommendation decisions exist yet.
 
 Ownership follows [5people.md](5people.md). Keep the core delivery scope in
 [PRODUCT_DEFINITION.md](docs/PRODUCT_DEFINITION.md).
+Build the engine using the staged gates in
+[ENGINE_IMPLEMENTATION_ROADMAP.md](docs/ENGINE_IMPLEMENTATION_ROADMAP.md).
 
 | Person | Start here |
 | --- | --- |

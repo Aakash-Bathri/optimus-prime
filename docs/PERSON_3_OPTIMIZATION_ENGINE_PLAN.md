@@ -4,6 +4,8 @@ Detailed implementation plan for the CloudPilot backend, candidate selection, co
 
 Status: proposed implementation, not completed functionality. Assignment source: `../5people.md`, Person 3. Read alongside `PERSON_2_FORECASTING_AND_REPLAY_PLAN.md`.
 
+For the repository-grounded build sequence, concrete contracts, full action/alert coverage and milestone exit gates, use [ENGINE_IMPLEMENTATION_ROADMAP.md](ENGINE_IMPLEMENTATION_ROADMAP.md). Its one-day milestone sequence supersedes the older hourly schedule in the team assignment.
+
 ## 1. Outcome and ownership
 
 Build the authoritative service that answers: **Which exact action should the engineer consider, why does it satisfy the implemented checks, and what would the modeled bill become?**
@@ -60,7 +62,7 @@ Core service: `optimize_resource(resource_id, as_of, policy_version) -> Recommen
 
 ## 5. Shared data and evidence contracts
 
-Agree IDs, UTC half-open observation windows, units and revisions during hours 0–4. Source schemas belong to Person 1. Recommendation/change schemas belong to you. Forecast/replay results belong to Person 2 using the contract in their plan.
+Agree IDs, UTC half-open observation windows, units and revisions during milestone M0. Source schemas belong to Person 1. Recommendation/change schemas belong to you. Forecast/replay results belong to Person 2 using the contract in their plan.
 
 A recommendation stores:
 
@@ -132,8 +134,8 @@ Historical and stress replay must pass the shared configured criteria. A zero al
 | --- | --- |
 | Downsize/upsize | Exact compatible target plan, projected demand/headroom, all gate results |
 | Schedule | Non-production; full proposed off-hour telemetry; recurring/batch activity checked; explicit timezone and calendar |
-| Idle investigation | Sustained CPU, memory, I/O and network inactivity with adequate coverage; dependencies/ownership reviewed |
-| Orphan review | Attachment/assignment state, age and ownership evidence; propose review before deletion |
+| Idle stop/delete proposal | Sustained CPU, memory, I/O and network inactivity with adequate coverage; confirmed ownership/dependency review; delete additionally requires backup/deletion disposition; unresolved evidence produces investigation findings |
+| Volume cleanup/IP release proposal | Attachment/assignment history, age, ownership and dependency evidence; volume deletion requires backup/deletion review; unresolved prerequisites produce review findings |
 | No action/defer | Explain why no eligible beneficial action is available or what evidence is missing |
 
 For an idle resource, low CPU alone is insufficient. A dormant batch job can still be essential. Missing ownership, backup knowledge, or dependencies blocks deletion readiness. A review-only orphan finding can be displayed, but exclude its savings from executable/accepted savings until the required review is resolved. Show conditional potential savings separately.
@@ -215,19 +217,21 @@ Return a structured explanation that Person 4 and the agent can render without i
 
 Use heuristic risk tiers only with transparent rules. A low-risk label must not hide unknown required constraints, and no risk score represents an outage probability.
 
-## 14. Implementation schedule and handoffs
+## 14. Implementation milestones and handoffs
 
-| Time | Implement | Evidence of completion |
+The confirmed product scope is one day. Use [the implementation roadmap](ENGINE_IMPLEMENTATION_ROADMAP.md) for detailed dependencies and completion gates; do not treat the historical 42-hour assignment as the available delivery window.
+
+| Milestone | Implement | Evidence of completion |
 | --- | --- | --- |
-| Hours 0–4 | App skeleton, shared contracts, policy config, fixtures | Frontend and MCP can consume stable responses |
-| Hours 4–8 | Catalog enumeration, absolute-demand capacity gates | Single-resource candidate matrix works |
-| Hours 8–12 | Baseline integration, cost service, recommendations | Inventory → recommendation API works locally |
-| Hours 12–20 | Schedules, action conflicts, plan composition, decisions | Correct combined costs survive restart |
-| Hours 20–28 | Replay/scenario integration, evidence, optional change services | Unsafe candidates blocked with reasons |
-| Hours 28–34 | Frontend/MCP integration, stale revision handling | Same rules through all entry points |
-| Hours 34–42 | Acceptance, setup documentation and demo fixes | Clean-start core journey and reconciled exports |
+| M0 | Shared source/evidence contracts, policy, usable telemetry/catalog fixtures | Persons 1–5 can consume agreed contracts |
+| M1 | Shared analytics, candidate enumeration, replay, cost and selection | Complete single-resource candidate matrix |
+| M2 | Persistence, decisions, cost plan and export | Resource → evidence → accept → export survives restart |
+| M3 | Schedules, idle/orphan proposals, conflicts and composed economics | All action types and hand-calculated combined bills |
+| M4 | Estate analysis, filtered aggregates and four alert detectors | Complete, reconciled totals and explained alerts |
+| M5 | Simulation/verification adapters and remaining integrations | Shared rules through UI, REST and enabled MCP |
+| M6 | Acceptance, clean setup, assumptions and demo fixes | Reproducible core journey with recorded evidence |
 
-If only one day is available, deliver deterministic rightsizing, cost composition, decisions and export first; reserve the final quarter for integration. Use Person 2's baseline if learned methods are unavailable. No cloud/provider integration should block the core flow.
+Reserve the final quarter for acceptance and integration. Learned methods and cloud/provider integrations do not block the core flow. Missing mandatory actions or alerts remain incomplete core work, rather than being silently deferred as optional features.
 
 ## 15. Behavioral acceptance matrix
 
@@ -264,4 +268,4 @@ Use small hand-calculated fixtures for economics and boundary conditions. Integr
 - Plan acceptance and infrastructure approval remain separate and version bound.
 - Frontend and MCP consume the same backend rules; exports include assumptions and provenance.
 
-First commit: contracts, policy and API fixtures. Second: single-resource enumeration and cost calculation. Third: persistent recommendations and composed plan. Fourth: replay/evidence integration and optional change workflow.
+First change: M0 contracts, policy and fixtures. Then complete single-resource evaluation, including historical replay, before selecting a recommendation. Follow with the persisted plan journey, all action types, estate/alert coverage and integration. Optional change adapters follow the core gates.

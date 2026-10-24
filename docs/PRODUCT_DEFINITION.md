@@ -48,7 +48,7 @@ Primary journey: overview -> resource -> evidence -> accept -> updated cost plan
 
 ## 4. Data design
 
-Selected implementation: a deterministic generator for 100 VMs plus illustrative block volumes and public IPs. Generate 30 days at 15-minute intervals: 288,000 VM metric rows before deliberately missing telemetry is introduced. Regions: Noida, Bangalore, Mumbai. Environments: production, staging, development. Teams and resource distributions are synthetic fixtures.
+Selected implementation, aligned with the later team assignment in `5people.md`: a deterministic generator for 120 VMs plus illustrative block volumes and public IPs. Generate 30 complete days at 15-minute intervals: 345,600 timestamped VM rows. Preserve the regular timestamp grid and represent deliberately unavailable metric values explicitly. Regions: Noida, Bangalore, Mumbai. Environments: production, staging, development. Teams and resource distributions are synthetic fixtures. Engine code reads estate size and expected intervals from the delivered manifest.
 
 Inventory: ID, name, type, region, environment, owner/team, plan, vCPU, RAM, disk capacity, creation date, state, attachments and provenance.
 
