@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import SecretStr
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -12,6 +13,7 @@ class Settings(BaseSettings):
 
     database_path: Path = Path("data/local/cloudpilot.sqlite3")
     cors_origins: list[str] = ["http://localhost:5173"]
+    execution_token: SecretStr = SecretStr("")
 
     @property
     def resolved_database_path(self) -> Path:

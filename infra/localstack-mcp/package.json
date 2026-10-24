@@ -1,0 +1,7 @@
+{
+  "name": "cloudpilot-localstack-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": { "start": "localstack-mcp-server" },
+  "dependencies": { "@localstack/localstack-mcp-server": "0.7.0" }
+}

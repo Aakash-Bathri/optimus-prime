@@ -1,5 +1,24 @@
 @import "tailwindcss";
 
+section + section { margin-top: 28px; }
+.controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin: 18px 0; }
+label { display: grid; gap: 6px; font-size: 14px; }
+input, select, textarea { border: 1px solid #a6bac8; border-radius: 6px; padding: 9px; font: inherit; background: white; }
+input[type=password] { min-width: 260px; }
+textarea { width: 100%; box-sizing: border-box; }
+button { border: 1px solid #325b73; border-radius: 6px; padding: 9px 14px; background: #174c68; color: white; cursor: pointer; font: inherit; }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible { outline: 3px solid #3daed2; outline-offset: 3px; }
+.proposal { margin: 24px 0; padding: 20px; border: 1px solid #b4ccd9; border-radius: 8px; background: #f6fafc; }
+.proposal ol, .execution ul { padding-left: 24px; list-style: revert; }
+.execution li { margin: 8px 0; }
+.execution details { margin: 18px 0; }
+.execution summary { cursor: pointer; font-weight: 600; }
+.error { color: #a22424; background: #fff0f0; padding: 12px; border-radius: 6px; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #e8f0f5; padding: 14px; border-radius: 6px; font-size: 13px; }
+.mono { font-family: monospace; overflow-wrap: anywhere; font-size: 12px; }
+a { color: #075b83; text-decoration: underline; }
+
 :root {
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
   color: #182c3b;

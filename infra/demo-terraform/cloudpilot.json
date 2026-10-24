@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "provider": "localstack",
+  "region": "us-east-1",
+  "resources": [
+    {
+      "resource_id": "demo-api-01",
+      "management": "terraform",
+      "terraform_address": "aws_instance.production_api",
+      "terraform_file": "main.tf",
+      "variables_file": "terraform.tfvars.json",
+      "variable": "api_instance_type",
+      "current_instance_type": "m5.2xlarge",
+      "candidate_instance_types": ["m5.xlarge", "m5.large"]
+    }
+  ]
+}

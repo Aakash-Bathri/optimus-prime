@@ -13,3 +13,7 @@ dist/
 data/local/
 experiments/artifacts/
 
+
+github_app_private_key/
+
+*.pem

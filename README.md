@@ -1,9 +1,16 @@
 # CloudPilot
 
-Minimal development foundation for the five-person team. It starts a FastAPI API,
-a React + TypeScript + Tailwind frontend, and a local SQLite connection. One shared
-JSON fixture proves the frontend/backend connection. Product features are still
-to be implemented.
+FastAPI, React + TypeScript, and SQLite foundation for the five-person team.
+Person 5's LocalStack/MCP/LangChain approval workflow is implemented: prepare an
+exact change, approve or reject it, then create a Terraform PR or change a manual
+LocalStack instance and verify the result. Forecasting and optimization remain
+separate team integrations; demo recommendations are explicitly labeled stubs.
+
+See [Person 5 workflow](docs/PERSON_5_WORKFLOW.md) for setup, dashboard usage,
+engine handoff, supported operations, recovery and live acceptance tests, and
+[prerequisites](docs/PERSON_5_PREREQUISITES.md) for the local credentials.
+The [acceptance record](docs/PERSON_5_ACCEPTANCE.md) separates unit checks from real
+Bedrock, LocalStack and GitHub verification.
 
 ## Start locally
 
@@ -13,7 +20,7 @@ Run from the repository root in two terminals:
 ```sh
 # Terminal 1 — API
 uv sync --directory backend
-uv run --directory backend uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+uv run --directory backend uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
 ```sh
@@ -23,11 +30,12 @@ npm ci
 npm run dev
 ```
 
-Open [CloudPilot](http://localhost:5173) and [API docs](http://localhost:8000/docs).
-No credentials or Docker are needed. Configuration defaults work as-is; optional
+Open [CloudPilot](http://localhost:5173) and [API docs](http://localhost:8001/docs).
+The starter inventory works without credentials or Docker. Execution needs the
+configured integrations and a local operator token. Configuration defaults work as-is; optional
 overrides live in a root `.env` copied from `.env.example`. The frontend proxies
 `/api` to the backend. SQLite files are created under `data/local/` and ignored by Git.
-No domain tables or persistent recommendation decisions exist yet.
+Execution registrations, approvals, proposals and audit events persist there.
 
 ## Starting points
 

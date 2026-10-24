@@ -1,0 +1,21 @@
+services:
+  localstack:
+    image: localstack/localstack@sha256:6bbc77aa520c6af456b5f80a50f67ba1b96937dbed7b1a9843938cd32c9334bc
+    container_name: cloudpilot-localstack
+    ports:
+      - "127.0.0.1:4566:4566"
+    environment:
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN:?Set LOCALSTACK_AUTH_TOKEN in the root .env}
+      SERVICES: ec2,sts
+      EC2_VM_MANAGER: mock
+      AWS_DEFAULT_REGION: us-east-1
+    volumes:
+      - cloudpilot-localstack:/var/lib/localstack
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4566/_localstack/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  cloudpilot-localstack:

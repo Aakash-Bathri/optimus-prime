@@ -11,15 +11,22 @@ from starlette.exceptions import HTTPException
 from app.api.routes import router
 from app.config import Settings
 from app.database import initialize
+from app.api.execution import router as execution_router
+from app.execution.contracts import WorkflowError
+from app.execution.service import ExecutionService
+from app.config import ROOT
+from dotenv import dotenv_values
 from app.models.contracts import ErrorResponse
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(settings: Settings | None = None, execution_service=None) -> FastAPI:
     config = settings if settings is not None else Settings()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         initialize(config.resolved_database_path)
+        app.state.execution = execution_service or ExecutionService(config.resolved_database_path, dotenv_values(ROOT / ".env"))
+        app.state.execution.store.recover_interrupted()
         yield
 
     app = FastAPI(
@@ -29,7 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = config
     app.add_middleware(
         CORSMiddleware, allow_origins=config.cors_origins,
-        allow_methods=["GET"], allow_headers=["Content-Type"],
+        allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Authorization"],
     )
 
     @app.middleware("http")
@@ -57,7 +64,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def validation_error(request: Request, exc: RequestValidationError):
         return error(request, 422, "validation_error", "Invalid request", exc.errors())
 
+    @app.exception_handler(WorkflowError)
+    async def workflow_error(request: Request, exc: WorkflowError):
+        return error(request, exc.status, "execution_error", str(exc))
+
     app.include_router(router)
+    app.include_router(execution_router)
     return app
 
 

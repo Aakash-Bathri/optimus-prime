@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { get } from './lib/api';
 import type { Page, Resource } from './lib/api';
+import Execution from './Execution';
 
 export default function App() {
   const [inventory, setInventory] = useState<Page<Resource> | null>(null);
@@ -38,7 +39,7 @@ export default function App() {
         </div>
         {error ? (
           <div role="alert">
-            <p>{error}. Check that the backend is running on port 8000.</p>
+            <p>{error}. Check that the backend is running at the configured API address.</p>
             <button onClick={() => setAttempt(value => value + 1)}>Retry</button>
           </div>
         ) : !inventory ? (
@@ -62,6 +63,7 @@ export default function App() {
         )}
         <p className="note">One synthetic fixture with illustrative pricing. Analysis and recommendations are not implemented yet.</p>
       </section>
+      <Execution />
     </main>
   );
 }

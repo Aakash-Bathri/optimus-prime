@@ -4,9 +4,17 @@ version = "0.1.0"
 description = "CloudPilot API foundation"
 requires-python = ">=3.12,<3.15"
 dependencies = [
+    "boto3>=1.43.118",
     "fastapi>=0.115,<1",
+    "httpx>=0.28,<1",
+    "langchain>=1.4.7",
+    "langchain-mcp-adapters>=0.3.2",
+    "langchain-openai>=1.7.2",
+    "mcp>=1.30.0,<2",
     "pydantic>=2.10,<3",
     "pydantic-settings>=2.7,<3",
+    "pyjwt[crypto]>=2.15.1",
+    "python-dotenv>=1.2.4",
     "uvicorn>=0.34,<1",
 ]
 
