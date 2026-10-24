@@ -1,0 +1,33 @@
+{
+  "resources": [
+    {
+      "id": "demo-api-01",
+      "name": "Production API (fixture)",
+      "type": "vm",
+      "region": "Noida",
+      "environment": "production",
+      "team": "platform",
+      "owner": "demo-engineer",
+      "current_plan_id": "demo-general-8",
+      "configuration_revision": 1,
+      "provenance": "synthetic",
+      "dataset_version": "starter-v1"
+    }
+  ],
+  "plans": [
+    {
+      "id": "demo-general-8",
+      "name": "Demo General 8",
+      "region": "Noida",
+      "vcpu": 8,
+      "memory_gib": 16,
+      "disk_gib": 100,
+      "compute_hourly_rate": "10.00",
+      "currency": "INR",
+      "billing_model": "hourly",
+      "pricing_source": "illustrative",
+      "catalog_version": "starter-v1"
+    }
+  ]
+}
+
