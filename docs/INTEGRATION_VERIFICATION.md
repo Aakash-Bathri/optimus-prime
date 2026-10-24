@@ -37,7 +37,7 @@ and customer Terraform apply are separate from the verified manual MCP route.
 
 Start Docker, set the LocalStack and local operator tokens in `.env`, then run
 `bash infra/seed_demo.sh` on macOS/Linux. Start the API and frontend as described
-in README. Follow `howtouse.md`; keep Scripted tools selected for the first run.
+in [README](../README.md).
 
 ## Docker Compose verification
 

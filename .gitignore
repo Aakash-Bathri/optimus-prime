@@ -27,3 +27,5 @@ github_app_private_key/
 **/*.auto.tfvars
 **/*.auto.tfvars.json
 infra/aws/**/backend.tf
+
+.artifact-build

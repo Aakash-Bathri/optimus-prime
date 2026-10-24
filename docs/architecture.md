@@ -37,5 +37,5 @@ production cloud changes. Forecasting and what-if scenarios are available in
 Monitoring; they do not override optimizer gates or install schedules. The AWS
 hosted configuration disables the execution lab.
 
-For the current plain-English dashboard and end-to-end user flow, read
-[the project guide](../howtouse.md).
+For local setup and a project overview, read
+[the README](../README.md).

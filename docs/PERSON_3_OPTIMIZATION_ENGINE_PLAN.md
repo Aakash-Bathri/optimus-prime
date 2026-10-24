@@ -2,7 +2,7 @@
 
 Detailed implementation plan for the CloudPilot backend, candidate selection, cost planning, and policy gates.
 
-Status: proposed implementation, not completed functionality. Assignment source: `../5people.md`, Person 3. Read alongside `PERSON_2_FORECASTING_AND_REPLAY_PLAN.md`.
+Status: proposed implementation, not completed functionality. Read alongside `PERSON_2_FORECASTING_AND_REPLAY_PLAN.md`.
 
 For the repository-grounded build sequence, concrete contracts, full action/alert coverage and milestone exit gates, use [ENGINE_IMPLEMENTATION_ROADMAP.md](ENGINE_IMPLEMENTATION_ROADMAP.md). Its one-day milestone sequence supersedes the older hourly schedule in the team assignment.
 
@@ -16,7 +16,7 @@ The UI, MCP agent and export path call the same services. The LLM never decides 
 
 ## 2. Scope decisions
 
-Use `5people.md` for ownership and handoff sequencing. Preserve the local-first scope of `PRODUCT_DEFINITION.md`: deterministic recommendations, illustrative prices, persistent cost-plan decisions, and no required cloud credentials. ML, provider execution, GitOps and cloud emulation remain optional integrations.
+Preserve the local-first scope: deterministic recommendations, illustrative prices, persistent cost-plan decisions, and no required cloud credentials. ML, provider execution, GitOps and cloud emulation remain optional integrations.
 
 Start with exact VM rightsizing and explicit no-action/insufficient-data outcomes. Add schedules, idle investigation, orphan review, plan composition and alerts after the first resource-to-recommendation flow works. Do not implement an unconstrained portfolio solver for the initial demo: independently enumerate resource plans, then enforce action conflicts and shared dependencies.
 

@@ -2,7 +2,7 @@
 
 Detailed implementation plan for the CloudPilot optimization recommendation engine.
 
-Status: proposed implementation, not completed functionality. Assignment source: `../5people.md`, Person 2. Read alongside `PERSON_3_OPTIMIZATION_ENGINE_PLAN.md`.
+Status: proposed implementation, not completed functionality. Read alongside `PERSON_3_OPTIMIZATION_ENGINE_PLAN.md`.
 
 ## 1. Outcome and ownership
 
