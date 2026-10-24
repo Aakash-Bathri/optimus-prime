@@ -11,9 +11,14 @@ class Settings(BaseSettings):
     )
 
     database_path: Path = Path("data/local/cloudpilot.sqlite3")
+    dataset_path: Path = Path("test-data")
     cors_origins: list[str] = ["http://localhost:5173"]
 
     @property
     def resolved_database_path(self) -> Path:
         return ROOT / self.database_path
+
+    @property
+    def resolved_dataset_path(self) -> Path:
+        return ROOT / self.dataset_path
 
