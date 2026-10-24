@@ -27,8 +27,8 @@
     "vm_count": 150,
     "metric_rows": 432000,
     "gpu_metric_rows": 28800,
-    "start": "2026-09-15T00:00:00",
-    "end_exclusive": "2026-10-15T00:00:00",
+    "start": "2026-08-01T00:00:00",
+    "end_exclusive": "2026-08-31T00:00:00",
     "metrics_only_for": "VM metrics cover VMs; GPU telemetry is separately stored in gpu_metrics.csv; volumes and IPs have inventory/relationship/events only"
   },
   "profiles": {
@@ -70,6 +70,6 @@
     "gpu_price": null
   },
   "synthetic_data": true,
-  "random_seed": 42,
+  "random_seed": 456,
   "caveat": "Only pricing is transcribed from supplied snapshot; workload telemetry and resource relationships are synthetic."
 }
