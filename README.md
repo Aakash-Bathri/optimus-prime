@@ -5,6 +5,7 @@
 Built for a hackathon, CloudPilot helps teams spot cloud waste, review cost-saving recommendations, and explore what-if scenarios using synthetic resource and usage data. Its execution lab supports approved LocalStack changes and Terraform pull requests.
 
 **Tech stack:** React 19, TypeScript, Vite, Tailwind CSS, Python 3.12+, FastAPI, SQLite, Docker, LocalStack, and Terraform. Optional LLM and GitHub App integrations power explanations and pull requests.
+(LocalStack is a mock AWS software . It is not implemented in the website . To use it clone and setup the application locally)
 
 ## Local setup / quick start
 
