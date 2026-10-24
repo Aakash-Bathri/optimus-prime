@@ -72,3 +72,8 @@ npm --prefix frontend run build
 The suite includes 15 dataset-to-execution API journeys with simulated external adapters. Live LLM, LocalStack MCP and Terraform PR results are recorded separately in [docs/verification](docs/verification). They are not interchangeable with unit-test coverage.
 
 The longer historical walkthrough in `howtouse.md` describes earlier UI labels; this README and the TRD describe the current workflow.
+
+### Workspace roles
+The top bar offers Engineer, Finance and Leadership personas in the explicitly enabled local demo (`CLOUDPILOT_LOCAL_TOKEN_PREFILL=true`). Engineer retains review and execution; Finance has cost analysis and scenarios without decision or execution access; Leadership gets a compact read-only overview and reports. Restrictions are enforced by the API as well as navigation. Role changes reload the workspace and preserve the shared organization data.
+
+Outside demo mode, set `CLOUDPILOT_WORKSPACE_ROLE=engineer|finance|leadership` on the server; browser role switching is disabled. This is a single-organization role-based prototype, not multi-tenant identity authentication. Signed role sessions reset when the backend restarts.

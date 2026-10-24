@@ -41,6 +41,8 @@ def create_app(settings: Settings | None = None, execution_service=None) -> Fast
         responses={422: {"model": ErrorResponse}},
     )
     app.state.settings = config
+    from app.access import install_access
+    install_access(app, config)
     app.add_middleware(
         CORSMiddleware, allow_origins=config.cors_origins,
         allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type", "Authorization"],

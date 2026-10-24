@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import SecretStr
@@ -14,6 +15,7 @@ class Settings(BaseSettings):
     database_path: Path = Path("data/local/cloudpilot.sqlite3")
     dataset_path: Path = Path("test-data")
     cors_origins: list[str] = ["http://localhost:5173"]
+    workspace_role: Literal["engineer", "finance", "leadership"] = "engineer"
     execution_enabled: bool = True
     local_token_prefill: bool = False
     execution_token: SecretStr = SecretStr("")

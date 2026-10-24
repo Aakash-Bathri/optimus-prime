@@ -27,9 +27,9 @@ For what-if questions, the LLM fills visible scenario inputs. The user reviews a
 3. Quarterly compute price divided by three is a comparison basis. Stopping committed VMs saves zero cash. Hourly prorating is an explicit hypothetical assumption.
 4. Scenarios count actual elapsed local time, including daylight-saving changes. Energy and carbon use editable assumptions.
 5. Approvals bind the source revision, resource snapshot, target and Terraform commit. Changed evidence requires a fresh preview. Repeating completed execution returns its saved result. Ambiguous writes require inspection of both local and remote effects.
-6. Secrets stay on the server except the local operator token held in page memory. Local filters are not tenant authentication.
+6. Secrets stay on the server except the local operator token held in page memory. Workspace roles are enforced on the server: engineers can change infrastructure and review findings; finance can run scenarios but cannot change infrastructure or decisions; leadership is read-only. A signed HttpOnly session cookie selects local demo personas. Outside local demo mode, CLOUDPILOT_WORKSPACE_ROLE fixes the server role. Local filters and persona switching are not tenant authentication.
 
 ## Verification and limits
 Run `pytest` in the backend and the frontend production build. Automated API journeys use simulated external adapters; live MCP, LLM and PR evidence is recorded separately in `docs/verification/`.
 
-Forecasts are historical extrapolations. Production Utho execution, automatic deletion, secure tenancy and unattended notifications are outside the implemented prototype. Actual Terraform PRs support the audited demo module only. See `PRODUCT_AUDIT.md` for detailed corrections.
+Forecasts are historical extrapolations. Production Utho execution, automatic deletion, tenant isolation, user sign-in and unattended notifications are outside the implemented prototype. Actual Terraform PRs support the audited demo module only. See `PRODUCT_AUDIT.md` for detailed corrections.
